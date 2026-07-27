@@ -28,6 +28,25 @@ pub struct ScoredIssue {
     pub matched_labels: Vec<String>,
 }
 
+pub fn score_issue(labels: &[String], has_body: bool, is_assigned: bool) -> (f64, Vec<String>) {
+    let lower_labels: Vec<String> = labels.iter().map(|l| l.to_lowercase()).collect();
+    let matched: Vec<String> = lower_labels
+        .iter()
+        .filter(|l| {
+            GOOD_FIRST_LABELS
+                .iter()
+                .any(|g| l.contains(g) || g.contains(l.as_str()))
+        })
+        .cloned()
+        .collect();
+
+    let label_score = if matched.is_empty() { 0.0 } else { 0.5 };
+    let body_score = if has_body { 0.3 } else { 0.0 };
+    let unassigned_score = if is_assigned { 0.0 } else { 0.2 };
+
+    (label_score + body_score + unassigned_score, matched)
+}
+
 pub async fn fetch_and_score(
     client: &Octocrab,
     owner: &str,
@@ -46,57 +65,26 @@ pub async fn fetch_and_score(
 
     for issue in page.items {
         if issue.pull_request.is_some() {
-            continue; // skip PRs disguised as issues
+            continue;
         }
 
-        let labels: Vec<String> = issue
-            .labels
-            .iter()
-            .map(|l| l.name.to_lowercase())
-            .collect();
+        let labels: Vec<String> = issue.labels.iter().map(|l| l.name.clone()).collect();
+        let has_body = issue.body.as_ref().map_or(false, |b| b.len() > 50);
+        let is_assigned = !issue.assignees.is_empty();
+        let (score, matched) = score_issue(&labels, has_body, is_assigned);
 
-        let matched: Vec<String> = labels
-            .iter()
-            .filter(|l| GOOD_FIRST_LABELS.iter().any(|g| l.contains(g) || g.contains(l.as_str())))
-            .cloned()
-            .collect();
+        let assignee = issue.assignees.first().map(|u| u.login.clone());
 
-        // score: label match (0.5) + has body (0.3) + unassigned (0.2)
-        let label_score = if matched.is_empty() {
-            0.0
-        } else {
-            0.5
-        };
-        let body_score = if issue.body.as_ref().map_or(false, |b| b.len() > 50) {
-            0.3
-        } else {
-            0.0
-        };
-        let unassigned_score = if issue.assignees.is_empty() {
-            0.2
-        } else {
-            0.0
-        };
-        let score = label_score + body_score + unassigned_score;
-
-        let assignee = issue
-            .assignees
-            .first()
-            .map(|u| u.login.clone());
-
-        let body_preview = issue
-            .body
-            .as_ref()
-            .map(|b| {
-                let clean: String = b.chars().take(200).collect();
-                clean.replace('\n', " ")
-            });
+        let body_preview = issue.body.as_ref().map(|b| {
+            let clean: String = b.chars().take(200).collect();
+            clean.replace('\n', " ")
+        });
 
         scored.push(ScoredIssue {
             number: issue.number,
             title: issue.title,
             url: issue.html_url.to_string(),
-            labels: issue.labels.iter().map(|l| l.name.clone()).collect(),
+            labels,
             assignee,
             created_at: issue.created_at,
             updated_at: issue.updated_at,
@@ -106,16 +94,67 @@ pub async fn fetch_and_score(
         });
     }
 
-    scored.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
-    scored.truncate(limit);
-
-    // re-sort: high-score first, then by updated_at descending
     scored.sort_by(|a, b| {
         b.score
             .partial_cmp(&a.score)
             .unwrap_or(std::cmp::Ordering::Equal)
             .then(b.updated_at.cmp(&a.updated_at))
     });
+    scored.truncate(limit);
 
     Ok(scored)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_score_good_first_issue() {
+        let labels = vec!["good first issue".to_string(), "bug".to_string()];
+        let (score, matched) = score_issue(&labels, true, false);
+        assert!((score - 1.0).abs() < f64::EPSILON);
+        assert_eq!(matched.len(), 1);
+    }
+
+    #[test]
+    fn test_score_no_matching_labels() {
+        let labels = vec!["bug".to_string(), "P-high".to_string()];
+        let (score, matched) = score_issue(&labels, true, false);
+        assert!((score - 0.5).abs() < f64::EPSILON); // body + unassigned only
+        assert!(matched.is_empty());
+    }
+
+    #[test]
+    fn test_score_assigned_no_body() {
+        let labels = vec!["help wanted".to_string()];
+        let (score, _) = score_issue(&labels, false, true);
+        assert!((score - 0.5).abs() < f64::EPSILON); // label only
+    }
+
+    #[test]
+    fn test_score_nothing() {
+        let labels: Vec<String> = vec![];
+        let (score, _) = score_issue(&labels, false, true);
+        assert!((score - 0.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_score_case_insensitive() {
+        let labels = vec!["Good First Issue".to_string()];
+        let (score, matched) = score_issue(&labels, false, false);
+        assert!((score - 0.7).abs() < f64::EPSILON);
+        assert_eq!(matched.len(), 1);
+    }
+
+    #[test]
+    fn test_score_multiple_matches() {
+        let labels = vec![
+            "good first issue".to_string(),
+            "help wanted".to_string(),
+        ];
+        let (score, matched) = score_issue(&labels, true, false);
+        assert!((score - 1.0).abs() < f64::EPSILON);
+        assert_eq!(matched.len(), 2);
+    }
 }
