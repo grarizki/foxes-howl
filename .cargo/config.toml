@@ -1,0 +1,4 @@
+# ponytail: linker config omitted — set globally in ~/.cargo/config.toml if needed
+# [target.aarch64-apple-darwin]
+# linker = "clang"
+# rustflags = ["-C", "link-arg=-fuse-ld=lld"]
