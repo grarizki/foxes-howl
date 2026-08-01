@@ -1,4 +1,4 @@
-# gh-opportunitiesortunities
+# gh-opportunities
 
 Find open source contribution opportunities on GitHub. Scan repos for good first issues, stale PRs, README gaps, and code quality signals. Interactive TUI dashboard included.
 
