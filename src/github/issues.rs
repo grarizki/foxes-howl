@@ -69,7 +69,7 @@ pub async fn fetch_and_score(
         }
 
         let labels: Vec<String> = issue.labels.iter().map(|l| l.name.clone()).collect();
-        let has_body = issue.body.as_ref().map_or(false, |b| b.len() > 50);
+        let has_body = issue.body.as_ref().is_some_and(|b| b.len() > 50);
         let is_assigned = !issue.assignees.is_empty();
         let (score, matched) = score_issue(&labels, has_body, is_assigned);
 
@@ -149,10 +149,7 @@ mod tests {
 
     #[test]
     fn test_score_multiple_matches() {
-        let labels = vec![
-            "good first issue".to_string(),
-            "help wanted".to_string(),
-        ];
+        let labels = vec!["good first issue".to_string(), "help wanted".to_string()];
         let (score, matched) = score_issue(&labels, true, false);
         assert!((score - 1.0).abs() < f64::EPSILON);
         assert_eq!(matched.len(), 2);

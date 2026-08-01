@@ -1,0 +1,32 @@
+# prek — git hook manager (https://github.com/j178/prek)
+# Install: prek install
+# Run all: prek run --all-files
+# Run one: prek run cargo-fmt
+
+[[repos]]
+repo = "local"
+
+[[repos.hooks]]
+id = "cargo-fmt"
+name = "cargo fmt"
+entry = "cargo fmt --check"
+language = "system"
+files = "\\.rs$"
+pass_filenames = false
+
+[[repos.hooks]]
+id = "cargo-clippy"
+name = "cargo clippy"
+entry = "cargo clippy -- -W clippy::all -D clippy::correctness -D clippy::suspicious"
+language = "system"
+files = "\\.rs$"
+pass_filenames = false
+
+[[repos.hooks]]
+id = "cargo-test"
+name = "cargo test"
+entry = "cargo test"
+language = "system"
+files = "\\.rs$"
+pass_filenames = false
+stages = ["pre-push"]

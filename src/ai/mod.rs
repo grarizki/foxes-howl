@@ -1,8 +1,8 @@
 pub mod anthropic;
 pub mod estimate;
 pub mod openai;
-pub mod provider;
 pub mod prompts;
+pub mod provider;
 pub mod tools;
 
 // Re-exported for use in later phases
