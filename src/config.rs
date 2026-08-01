@@ -50,7 +50,7 @@ pub struct ServeConfig {
     pub token_env: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct SecurityConfig {
     #[serde(default)]
     pub deny_config_path: Option<String>,
@@ -167,15 +167,6 @@ impl Default for ServeConfig {
     fn default() -> Self {
         Self {
             token_env: default_token_env(),
-        }
-    }
-}
-
-impl Default for SecurityConfig {
-    fn default() -> Self {
-        Self {
-            deny_config_path: None,
-            secret_patterns: Vec::new(),
         }
     }
 }

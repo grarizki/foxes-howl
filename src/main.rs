@@ -1,8 +1,12 @@
+mod ai;
 mod analysis;
 mod cli;
 mod config;
 mod db;
 mod github;
+mod hooks;
+mod security;
+mod serve;
 mod tui;
 
 use anyhow::Context;
