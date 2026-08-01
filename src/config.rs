@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct Config {
     #[serde(default)]
     pub scoring: ScoringConfig,
@@ -230,18 +230,6 @@ secret_patterns = []
             std::fs::write(&path, Self::default_toml())?;
         }
         Ok(path)
-    }
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            scoring: ScoringConfig::default(),
-            display: DisplayConfig::default(),
-            ai: AiConfig::default(),
-            serve: ServeConfig::default(),
-            security: SecurityConfig::default(),
-        }
     }
 }
 

@@ -79,9 +79,10 @@ async fn main() -> anyhow::Result<()> {
             let (owner, name) = cli::parse_repo(&repo)?;
             let client = github::build_client().context("Failed to build GitHub client")?;
 
-            let stale_issues = analysis::stale::find_stale_issues(&client, &owner, &name, days, limit)
-                .await
-                .context("Failed to fetch stale issues")?;
+            let stale_issues =
+                analysis::stale::find_stale_issues(&client, &owner, &name, days, limit)
+                    .await
+                    .context("Failed to fetch stale issues")?;
             let stale_prs = analysis::stale::find_stale_prs(&client, &owner, &name, days, limit)
                 .await
                 .context("Failed to fetch stale PRs")?;
@@ -137,10 +138,15 @@ async fn main() -> anyhow::Result<()> {
         } => {
             let client = github::build_client().context("Failed to build GitHub client")?;
 
-            let repos =
-                github::discover::discover_repos(&client, lang.as_deref(), topic.as_deref(), min_stars, limit)
-                    .await
-                    .context("Failed to discover repos")?;
+            let repos = github::discover::discover_repos(
+                &client,
+                lang.as_deref(),
+                topic.as_deref(),
+                min_stars,
+                limit,
+            )
+            .await
+            .context("Failed to discover repos")?;
 
             if json {
                 println!("{}", serde_json::to_string_pretty(&repos)?);
@@ -168,10 +174,15 @@ async fn main() -> anyhow::Result<()> {
                 let issues = github::issues::fetch_and_score(&client, &owner, &name, 50)
                     .await
                     .unwrap_or_default();
-                let stale =
-                    analysis::stale::find_stale_issues(&client, &owner, &name, cfg.scoring.stale_days, 50)
-                        .await
-                        .unwrap_or_default();
+                let stale = analysis::stale::find_stale_issues(
+                    &client,
+                    &owner,
+                    &name,
+                    cfg.scoring.stale_days,
+                    50,
+                )
+                .await
+                .unwrap_or_default();
                 let readme = analysis::readme::analyze_repo(&client, &owner, &name)
                     .await
                     .unwrap_or_else(|_| analysis::readme::ReadmeReport {
@@ -337,10 +348,7 @@ fn print_readme_report(owner: &str, repo: &str, report: &analysis::readme::Readm
         "CODE_OF_CONDUCT.md".to_string(),
         status_icon(report.has_code_of_conduct),
     ]);
-    table.add_row(vec![
-        "LICENSE".to_string(),
-        status_icon(report.has_license),
-    ]);
+    table.add_row(vec!["LICENSE".to_string(), status_icon(report.has_license)]);
     table.add_row(vec![
         "Issue Template".to_string(),
         status_icon(report.has_issue_template),
@@ -363,7 +371,11 @@ fn print_readme_report(owner: &str, repo: &str, report: &analysis::readme::Readm
     }
 }
 
-fn print_quality_report(owner: &str, repo: &str, report: &analysis::code_quality::CodeQualityReport) {
+fn print_quality_report(
+    owner: &str,
+    repo: &str,
+    report: &analysis::code_quality::CodeQualityReport,
+) {
     println!(
         "\n  Code Quality Analysis for {}/{} (score: {:.0}%)\n",
         owner,
@@ -374,9 +386,18 @@ fn print_quality_report(owner: &str, repo: &str, report: &analysis::code_quality
     let mut table = Table::new();
     table.load_preset(UTF8_FULL);
     table.set_header(vec!["Check", "Value"]);
-    table.add_row(vec!["TODO count".to_string(), report.todo_count.to_string()]);
-    table.add_row(vec!["FIXME count".to_string(), report.fixme_count.to_string()]);
-    table.add_row(vec!["HACK count".to_string(), report.hack_count.to_string()]);
+    table.add_row(vec![
+        "TODO count".to_string(),
+        report.todo_count.to_string(),
+    ]);
+    table.add_row(vec![
+        "FIXME count".to_string(),
+        report.fixme_count.to_string(),
+    ]);
+    table.add_row(vec![
+        "HACK count".to_string(),
+        report.hack_count.to_string(),
+    ]);
     table.add_row(vec!["CI Config".to_string(), status_icon(report.has_ci)]);
     table.add_row(vec![
         "Lint Config".to_string(),
@@ -415,7 +436,13 @@ fn print_discovered_repos(repos: &[github::discover::DiscoveredRepo]) {
 
     let mut table = Table::new();
     table.load_preset(UTF8_FULL);
-    table.set_header(vec!["Score", "Repo", "Language", "Stars", "Good First Issues"]);
+    table.set_header(vec![
+        "Score",
+        "Repo",
+        "Language",
+        "Stars",
+        "Good First Issues",
+    ]);
 
     for repo in repos {
         table.add_row(vec![
