@@ -80,6 +80,33 @@ pub enum Commands {
         repos: Vec<String>,
     },
 
+    /// Discover repos with contribution opportunities across GitHub
+    Discover {
+        /// Programming language filter (e.g., rust, python, typescript)
+        #[arg(long)]
+        lang: Option<String>,
+
+        /// Topic filter (e.g., web, cli, database)
+        #[arg(long)]
+        topic: Option<String>,
+
+        /// Minimum star count
+        #[arg(long, default_value_t = 100)]
+        min_stars: u64,
+
+        /// Max repos to return
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// Skip local cache
+        #[arg(long)]
+        no_cache: bool,
+    },
+
     /// Create default config file
     Init,
 }

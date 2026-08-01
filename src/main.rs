@@ -123,6 +123,28 @@ async fn main() -> anyhow::Result<()> {
             }
         }
 
+        Commands::Discover {
+            lang,
+            topic,
+            min_stars,
+            limit,
+            json,
+            no_cache: _,
+        } => {
+            let client = github::build_client().context("Failed to build GitHub client")?;
+
+            let repos =
+                github::discover::discover_repos(&client, lang.as_deref(), topic.as_deref(), min_stars, limit)
+                    .await
+                    .context("Failed to discover repos")?;
+
+            if json {
+                println!("{}", serde_json::to_string_pretty(&repos)?);
+            } else {
+                print_discovered_repos(&repos);
+            }
+        }
+
         Commands::Tui { repos } => {
             let client = github::build_client().context("Failed to build GitHub client")?;
 
@@ -377,4 +399,30 @@ fn truncate(s: &str, max: usize) -> String {
     } else {
         format!("{}...", &s[..max.saturating_sub(3)])
     }
+}
+
+fn print_discovered_repos(repos: &[github::discover::DiscoveredRepo]) {
+    if repos.is_empty() {
+        println!("No repos found matching criteria");
+        return;
+    }
+
+    println!("\n  Discovered repos with contribution opportunities\n");
+
+    let mut table = Table::new();
+    table.load_preset(UTF8_FULL);
+    table.set_header(vec!["Score", "Repo", "Language", "Stars", "Good First Issues"]);
+
+    for repo in repos {
+        table.add_row(vec![
+            format!("{:.1}", repo.score),
+            truncate(&repo.full_name, 30),
+            repo.language.as_deref().unwrap_or("-").to_string(),
+            repo.stars.to_string(),
+            repo.good_first_issues.to_string(),
+        ]);
+    }
+
+    println!("{table}");
+    println!("\nTop match: {}", repos[0].url);
 }

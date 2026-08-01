@@ -1,3 +1,4 @@
+pub mod discover;
 pub mod issues;
 
 use octocrab::Octocrab;

@@ -1,4 +1,4 @@
-# gh-opportunities
+# gh-opportunitiesortunities
 
 Find open source contribution opportunities on GitHub. Scan repos for good first issues, stale PRs, README gaps, and code quality signals. Interactive TUI dashboard included.
 
@@ -36,10 +36,10 @@ export GITHUB_TOKEN="ghp_your_token_here"
 Create default config:
 
 ```bash
-gh-opp init
+gh-opportunities init
 ```
 
-This creates `~/.config/gh-opportunities/config.toml`:
+This creates `~/.config/gh-opportunitiesortunities/config.toml`:
 
 ```toml
 [scoring]
@@ -59,36 +59,52 @@ max_results = 25
 
 ```bash
 # basic scan
-gh-opp scan rust-lang/rust
+gh-opportunities scan rust-lang/rust
 
 # limit results
-gh-opp scan tokio-rs/tokio --limit 10
+gh-opportunities scan tokio-rs/tokio --limit 10
 
 # JSON output for scripting
-gh-opp scan denoland/deno --json
+gh-opportunities scan denoland/deno --json
 
 # skip cache
-gh-opp scan facebook/react --no-cache
+gh-opportunities scan facebook/react --no-cache
+```
+
+### Discover Repos with Contribution Opportunities
+
+```bash
+# discover repos with good first issues in Rust
+gh-opportunities discover --lang rust
+
+# discover repos by topic
+gh-opportunities discover --topic web --lang typescript
+
+# discover repos with minimum stars
+gh-opportunities discover --lang python --min-stars 500 --limit 5
+
+# JSON output
+gh-opportunities discover --lang go --json
 ```
 
 ### Find Stale Issues and PRs
 
 ```bash
 # default: 30 day threshold
-gh-opp stale rust-lang/rust
+gh-opportunities stale rust-lang/rust
 
 # custom threshold
-gh-opp stale tokio-rs/tokio --days 14
+gh-opportunities stale tokio-rs/tokio --days 14
 
 # JSON output
-gh-opp stale vercel/next.js --json --limit 50
+gh-opportunities stale vercel/next.js --json --limit 50
 ```
 
 ### Analyze README and Community Health
 
 ```bash
-gh-opp readme rust-lang/rust
-gh-opp readme facebook/react --json
+gh-opportunities readme rust-lang/rust
+gh-opportunities readme facebook/react --json
 ```
 
 Output shows:
@@ -111,8 +127,8 @@ README Analysis for rust-lang/rust (score: 85%)
 ### Analyze Code Quality
 
 ```bash
-gh-opp quality rust-lang/rust
-gh-opp quality tokio-rs/tokio --json
+gh-opportunities quality rust-lang/rust
+gh-opportunities quality tokio-rs/tokio --json
 ```
 
 Output shows:
@@ -135,10 +151,10 @@ Code Quality Analysis for rust-lang/rust (score: 72%)
 
 ```bash
 # single repo
-gh-opp tui rust-lang/rust
+gh-opportunities tui rust-lang/rust
 
 # multiple repos
-gh-opp tui rust-lang/rust tokio-rs/tokio denoland/deno
+gh-opportunities tui rust-lang/rust tokio-rs/tokio denoland/deno
 ```
 
 #### TUI Keybindings
@@ -261,7 +277,7 @@ cargo test analysis::stale
 cargo test -- --nocapture
 ```
 
-48 unit tests covering:
+50 unit tests covering:
 - Issue scoring (label matching, body quality, assignment)
 - Stale severity calculation (threshold, linear decay, cap)
 - README analysis (build instructions, community files, broken links)
@@ -270,6 +286,21 @@ cargo test -- --nocapture
 - SQLite cache (store, load, clear, replace, schema)
 - TUI app state (navigation, filtering, input modes)
 - CLI parsing (repo format validation)
+- Discover scoring (star bonus calculation)
+
+## Security Audit
+
+Check dependencies for vulnerabilities before building:
+
+```bash
+# install cargo-audit (if not installed)
+brew install cargo-audit
+
+# run security audit
+cargo audit
+```
+
+Current status: 2 allowed warnings (unmaintained crate `paste`, unsound crate `lru` — both transitive dependencies, not direct).
 
 ## Dependencies
 
