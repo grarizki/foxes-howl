@@ -645,7 +645,7 @@ fn print_issues_table(owner: &str, repo: &str, issues: &[github::issues::ScoredI
         table.add_row(vec![
             format!("{:.1}", issue.score),
             issue.number.to_string(),
-            truncate(&issue.title, 50),
+            link(&issue.url, &truncate(&issue.title, 50)),
             truncate(&labels_display, 30),
             assigned.to_string(),
             format!("{}d ago", days_ago),
@@ -677,7 +677,7 @@ fn print_stale_table(
             table.add_row(vec![
                 format!("{:.2}", item.stale_severity),
                 item.number.to_string(),
-                truncate(&item.title, 45),
+                link(&item.url, &truncate(&item.title, 45)),
                 item.last_activity_days.to_string(),
                 if item.has_assignee { "Yes" } else { "No" }.to_string(),
             ]);
@@ -694,7 +694,7 @@ fn print_stale_table(
             table.add_row(vec![
                 format!("{:.2}", item.stale_severity),
                 item.number.to_string(),
-                truncate(&item.title, 45),
+                link(&item.url, &truncate(&item.title, 45)),
                 item.last_activity_days.to_string(),
                 if item.has_assignee { "Yes" } else { "No" }.to_string(),
             ]);
@@ -808,6 +808,12 @@ fn truncate(s: &str, max: usize) -> String {
     }
 }
 
+/// OSC 8 terminal hyperlink: clickable in terminals that support OSC-8
+/// (iTerm2, VS Code, kitty, WezTerm, foot). Inert on others — text still shows.
+fn link(url: &str, text: &str) -> String {
+    format!("\x1b]8;;{}\x1b\\{}\x1b]8;;\x1b\\", url, text)
+}
+
 fn print_discovered_repos(repos: &[github::discover::DiscoveredRepo]) {
     if repos.is_empty() {
         println!("No repos found matching criteria");
@@ -829,7 +835,7 @@ fn print_discovered_repos(repos: &[github::discover::DiscoveredRepo]) {
     for repo in repos {
         table.add_row(vec![
             format!("{:.1}", repo.score),
-            truncate(&repo.full_name, 30),
+            link(&repo.url, &truncate(&repo.full_name, 30)),
             repo.language.as_deref().unwrap_or("-").to_string(),
             repo.stars.to_string(),
             repo.good_first_issues.to_string(),
