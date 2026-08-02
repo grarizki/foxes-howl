@@ -15,22 +15,14 @@ pub struct DiscoveredRepo {
 pub async fn discover_repos(
     client: &Octocrab,
     lang: Option<&str>,
-    topic: Option<&str>,
+    _topic: Option<&str>, // ponytail: topic needs repo-metadata field we don't fetch; dropped
     min_stars: u64,
     limit: usize,
 ) -> anyhow::Result<Vec<DiscoveredRepo>> {
-    // Search for issues with good-first-issue labels
-    let mut query = "label:\"good first issue\" is:issue is:open".to_string();
-
-    if let Some(lang) = lang {
-        query.push_str(&format!(" language:{}", lang));
-    }
-    if let Some(topic) = topic {
-        query.push_str(&format!(" topic:{}", topic));
-    }
-    if min_stars > 0 {
-        query.push_str(&format!(" stars:>{}", min_stars));
-    }
+    // Search for issues with good-first-issue labels.
+    // Note: GitHub issue search does not support `language:`/`stars:`/`topic:`
+    // qualifiers (repo-search only). They are applied post-fetch in `applies`.
+    let query = "label:\"good first issue\" is:issue is:open";
 
     let results: octocrab::Page<octocrab::models::issues::Issue> = client
         .search()
@@ -92,12 +84,18 @@ pub async fn discover_repos(
                 };
                 repo.score = repo.good_first_issues as f64 * (1.0 + star_bonus);
 
+                if !applies(lang, min_stars, &repo) {
+                    continue;
+                }
                 result.push(repo);
             }
             Err(e) => {
                 tracing::warn!("Failed to fetch repo {}: {}", full_name, e);
                 // Still include it with partial data
                 repo.score = repo.good_first_issues as f64;
+                if !applies(lang, min_stars, &repo) {
+                    continue;
+                }
                 result.push(repo);
             }
         }
@@ -112,6 +110,26 @@ pub async fn discover_repos(
     result.truncate(limit);
 
     Ok(result)
+}
+
+/// Post-fetch filter. `lang` is exact-match (case-insensitive, same as GitHub).
+/// octocrab's `language` carries surrounding quotes (e.g. `"TypeScript"`); trim.
+fn applies(lang: Option<&str>, min_stars: u64, repo: &DiscoveredRepo) -> bool {
+    if repo.stars < min_stars {
+        return false;
+    }
+    if let Some(lang) = lang {
+        let lang = lang.trim_matches('"');
+        let matches = repo
+            .language
+            .as_deref()
+            .map(|l| l.trim_matches('"').eq_ignore_ascii_case(lang))
+            .unwrap_or(false);
+        if !matches {
+            return false;
+        }
+    }
+    true
 }
 
 #[cfg(test)]
@@ -139,5 +157,41 @@ mod tests {
                     0.0
                 });
         assert!((score - 3.0).abs() < 0.01);
+    }
+
+    fn repo(stars: u64, language: Option<&str>) -> DiscoveredRepo {
+        DiscoveredRepo {
+            full_name: "o/r".to_string(),
+            url: "https://github.com/o/r".to_string(),
+            description: None,
+            stars,
+            language: language.map(|s| s.to_string()),
+            good_first_issues: 1,
+            score: 0.0,
+        }
+    }
+
+    #[test]
+    fn test_applies_lang_exact() {
+        let r = repo(5000, Some("TypeScript"));
+        assert!(applies(Some("typescript"), 0, &r)); // exact, case-insensitive
+        assert!(!applies(Some("rust"), 0, &r)); // mismatch
+        assert!(!applies(Some("typescript"), 0, &repo(5000, None))); // no lang on repo
+    }
+
+    #[test]
+    fn test_applies_lang_octocrab_quotes() {
+        // octocrab's language carries surrounding quotes
+        let r = repo(5000, Some("\"TypeScript\""));
+        assert!(applies(Some("typescript"), 0, &r));
+        assert!(applies(Some("\"typescript\""), 0, &r));
+        assert!(!applies(Some("rust"), 0, &r));
+    }
+
+    #[test]
+    fn test_applies_min_stars_bounds() {
+        let r = repo(1000, None);
+        assert!(applies(None, 1000, &r)); // == passes, not strict >
+        assert!(!applies(None, 1001, &r)); // below
     }
 }
