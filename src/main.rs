@@ -198,7 +198,7 @@ async fn main() -> anyhow::Result<()> {
                     });
                 let quality = analysis::code_quality::analyze_repo(&client, &owner, &name)
                     .await
-                    .unwrap_or_else(|_| analysis::code_quality::CodeQualityReport {
+                    .unwrap_or(analysis::code_quality::CodeQualityReport {
                         todo_count: 0,
                         fixme_count: 0,
                         hack_count: 0,
