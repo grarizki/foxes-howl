@@ -15,13 +15,20 @@ pub async fn health() -> Json<HealthResponse> {
     })
 }
 
-pub async fn tools(Extension(token): Extension<String>, headers: HeaderMap) -> Result<Json<serde_json::Value>, StatusCode> {
+pub async fn tools(
+    Extension(token): Extension<String>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, StatusCode> {
     check_auth(&headers, &token)?;
     let tools = crate::ai::tools::definitions();
     Ok(Json(serde_json::json!(tools)))
 }
 
-pub async fn profile(Extension(token): Extension<String>, Extension(config): Extension<crate::config::Config>, headers: HeaderMap) -> Result<Json<serde_json::Value>, StatusCode> {
+pub async fn profile(
+    Extension(token): Extension<String>,
+    Extension(config): Extension<crate::config::Config>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, StatusCode> {
     check_auth(&headers, &token)?;
     Ok(Json(serde_json::json!(config.ai.profile)))
 }
@@ -73,9 +80,7 @@ pub async fn ai_analyze(
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     check_auth(&headers, &token)?;
 
-    let (system, user) = crate::ai::prompts::build_analyze_prompt(
-        &req.repo, "[]", 0, 0.0, 0.0,
-    );
+    let (system, user) = crate::ai::prompts::build_analyze_prompt(&req.repo, "[]", 0, 0.0, 0.0);
     let est = crate::ai::estimate::estimate(&system, &user, &config.ai.model);
 
     // Return estimate only — actual AI call requires API key
@@ -97,15 +102,16 @@ pub async fn ai_recommend(
 
     let profile = crate::config::UserProfile {
         name: config.ai.profile.name.clone(),
-        skills: req.skills.unwrap_or_else(|| config.ai.profile.skills.clone()),
+        skills: req
+            .skills
+            .unwrap_or_else(|| config.ai.profile.skills.clone()),
         experience: config.ai.profile.experience.clone(),
         hours_per_week: req.hours.unwrap_or(config.ai.profile.hours_per_week),
         interests: config.ai.profile.interests.clone(),
     };
 
-    let (system, user) = crate::ai::prompts::build_recommend_prompt(
-        &req.repo, &profile, "[]", "[]",
-    );
+    let (system, user) =
+        crate::ai::prompts::build_recommend_prompt(&req.repo, &profile, "[]", "[]");
     let est = crate::ai::estimate::estimate(&system, &user, &config.ai.model);
 
     Ok(Json(serde_json::json!({

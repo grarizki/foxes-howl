@@ -13,10 +13,7 @@ pub async fn run_server(
     config: crate::config::Config,
 ) -> anyhow::Result<()> {
     let token = std::env::var(token_env).map_err(|_| {
-        anyhow::anyhow!(
-            "Set {} in your environment to start the server",
-            token_env
-        )
+        anyhow::anyhow!("Set {} in your environment to start the server", token_env)
     })?;
 
     // Show token hash (last 4 chars)
@@ -79,21 +76,33 @@ mod tests {
     #[test]
     fn test_check_auth_valid() {
         let mut headers = HeaderMap::new();
-        headers.insert("authorization", HeaderValue::from_static("Bearer test-token-1234"));
+        headers.insert(
+            "authorization",
+            HeaderValue::from_static("Bearer test-token-1234"),
+        );
         assert!(check_auth(&headers, "test-token-1234").is_ok());
     }
 
     #[test]
     fn test_check_auth_invalid() {
         let mut headers = HeaderMap::new();
-        headers.insert("authorization", HeaderValue::from_static("Bearer wrong-token"));
-        assert_eq!(check_auth(&headers, "correct-token"), Err(StatusCode::FORBIDDEN));
+        headers.insert(
+            "authorization",
+            HeaderValue::from_static("Bearer wrong-token"),
+        );
+        assert_eq!(
+            check_auth(&headers, "correct-token"),
+            Err(StatusCode::FORBIDDEN)
+        );
     }
 
     #[test]
     fn test_check_auth_missing() {
         let headers = HeaderMap::new();
-        assert_eq!(check_auth(&headers, "any-token"), Err(StatusCode::UNAUTHORIZED));
+        assert_eq!(
+            check_auth(&headers, "any-token"),
+            Err(StatusCode::UNAUTHORIZED)
+        );
     }
 
     #[test]

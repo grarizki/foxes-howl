@@ -63,10 +63,7 @@ impl SecurityReport {
 }
 
 /// Run all security checks
-pub async fn run_all(
-    deny_config: Option<&str>,
-    extra_patterns: &[String],
-) -> SecurityReport {
+pub async fn run_all(deny_config: Option<&str>, extra_patterns: &[String]) -> SecurityReport {
     let mut checks = Vec::new();
 
     checks.push(audit::run_audit().await);

@@ -247,106 +247,120 @@ async fn main() -> anyhow::Result<()> {
             println!("Config created at: {}", path.display());
         }
 
-        Commands::Ai { action } => {
-            match action {
-                cli::AiAction::Analyze { repo, yes } => {
-                    let provider = ai::build_provider(&cfg.ai)?;
-                    let (owner, name) = cli::parse_repo(&repo)?;
-                    let client = github::build_client().context("Failed to build GitHub client")?;
+        Commands::Ai { action } => match action {
+            cli::AiAction::Analyze { repo, yes } => {
+                let provider = ai::build_provider(&cfg.ai)?;
+                let (owner, name) = cli::parse_repo(&repo)?;
+                let client = github::build_client().context("Failed to build GitHub client")?;
 
-                    let issues = github::issues::fetch_and_score(&client, &owner, &name, 25)
-                        .await
-                        .unwrap_or_default();
-                    let stale_count = analysis::stale::find_stale_issues(
-                        &client, &owner, &name, cfg.scoring.stale_days, 50,
-                    )
+                let issues = github::issues::fetch_and_score(&client, &owner, &name, 25)
                     .await
-                    .map(|s| s.len())
-                    .unwrap_or(0);
-                    let readme = analysis::readme::analyze_repo(&client, &owner, &name)
-                        .await
-                        .map(|r| r.score)
-                        .unwrap_or(0.0);
-                    let quality = analysis::code_quality::analyze_repo(&client, &owner, &name)
-                        .await
-                        .map(|r| r.score)
-                        .unwrap_or(0.0);
+                    .unwrap_or_default();
+                let stale_count = analysis::stale::find_stale_issues(
+                    &client,
+                    &owner,
+                    &name,
+                    cfg.scoring.stale_days,
+                    50,
+                )
+                .await
+                .map(|s| s.len())
+                .unwrap_or(0);
+                let readme = analysis::readme::analyze_repo(&client, &owner, &name)
+                    .await
+                    .map(|r| r.score)
+                    .unwrap_or(0.0);
+                let quality = analysis::code_quality::analyze_repo(&client, &owner, &name)
+                    .await
+                    .map(|r| r.score)
+                    .unwrap_or(0.0);
 
-                    let issues_json = serde_json::to_string(&issues)?;
-                    let (system, user) = ai::prompts::build_analyze_prompt(
-                        &repo, &issues_json, stale_count, readme, quality,
-                    );
+                let issues_json = serde_json::to_string(&issues)?;
+                let (system, user) = ai::prompts::build_analyze_prompt(
+                    &repo,
+                    &issues_json,
+                    stale_count,
+                    readme,
+                    quality,
+                );
 
-                    let est = ai::estimate::estimate(&system, &user, &cfg.ai.model);
-                    if !confirm_cost(&est, yes)? {
-                        return Ok(());
-                    }
-
-                    let response = provider.complete(&system, &user).await?;
-                    println!("{}", response);
+                let est = ai::estimate::estimate(&system, &user, &cfg.ai.model);
+                if !confirm_cost(&est, yes)? {
+                    return Ok(());
                 }
 
-                cli::AiAction::Recommend { repo, skills, hours, yes } => {
-                    let provider = ai::build_provider(&cfg.ai)?;
-                    let (owner, name) = cli::parse_repo(&repo)?;
-                    let client = github::build_client().context("Failed to build GitHub client")?;
+                let response = provider.complete(&system, &user).await?;
+                println!("{}", response);
+            }
 
-                    let issues = github::issues::fetch_and_score(&client, &owner, &name, 25)
-                        .await
-                        .unwrap_or_default();
-                    let stale = analysis::stale::find_stale_issues(
-                        &client, &owner, &name, cfg.scoring.stale_days, 50,
-                    )
+            cli::AiAction::Recommend {
+                repo,
+                skills,
+                hours,
+                yes,
+            } => {
+                let provider = ai::build_provider(&cfg.ai)?;
+                let (owner, name) = cli::parse_repo(&repo)?;
+                let client = github::build_client().context("Failed to build GitHub client")?;
+
+                let issues = github::issues::fetch_and_score(&client, &owner, &name, 25)
+                    .await
+                    .unwrap_or_default();
+                let stale = analysis::stale::find_stale_issues(
+                    &client,
+                    &owner,
+                    &name,
+                    cfg.scoring.stale_days,
+                    50,
+                )
+                .await
+                .unwrap_or_default();
+
+                let profile = config::UserProfile {
+                    name: cfg.ai.profile.name.clone(),
+                    skills: skills
+                        .map(|s| s.split(',').map(|x| x.trim().to_string()).collect())
+                        .unwrap_or_else(|| cfg.ai.profile.skills.clone()),
+                    experience: cfg.ai.profile.experience.clone(),
+                    hours_per_week: hours,
+                    interests: cfg.ai.profile.interests.clone(),
+                };
+
+                let issues_json = serde_json::to_string(&issues)?;
+                let stale_json = serde_json::to_string(&stale)?;
+                let (system, user) =
+                    ai::prompts::build_recommend_prompt(&repo, &profile, &issues_json, &stale_json);
+
+                let est = ai::estimate::estimate(&system, &user, &cfg.ai.model);
+                if !confirm_cost(&est, yes)? {
+                    return Ok(());
+                }
+
+                let response = provider.complete(&system, &user).await?;
+                println!("{}", response);
+            }
+
+            cli::AiAction::Difficulty { repo, yes } => {
+                let provider = ai::build_provider(&cfg.ai)?;
+                let (owner, name) = cli::parse_repo(&repo)?;
+                let client = github::build_client().context("Failed to build GitHub client")?;
+
+                let issues = github::issues::fetch_and_score(&client, &owner, &name, 25)
                     .await
                     .unwrap_or_default();
 
-                    let profile = config::UserProfile {
-                        name: cfg.ai.profile.name.clone(),
-                        skills: skills
-                            .map(|s| s.split(',').map(|x| x.trim().to_string()).collect())
-                            .unwrap_or_else(|| cfg.ai.profile.skills.clone()),
-                        experience: cfg.ai.profile.experience.clone(),
-                        hours_per_week: hours,
-                        interests: cfg.ai.profile.interests.clone(),
-                    };
+                let issues_json = serde_json::to_string(&issues)?;
+                let (system, user) = ai::prompts::build_difficulty_prompt(&repo, &issues_json);
 
-                    let issues_json = serde_json::to_string(&issues)?;
-                    let stale_json = serde_json::to_string(&stale)?;
-                    let (system, user) = ai::prompts::build_recommend_prompt(
-                        &repo, &profile, &issues_json, &stale_json,
-                    );
-
-                    let est = ai::estimate::estimate(&system, &user, &cfg.ai.model);
-                    if !confirm_cost(&est, yes)? {
-                        return Ok(());
-                    }
-
-                    let response = provider.complete(&system, &user).await?;
-                    println!("{}", response);
+                let est = ai::estimate::estimate(&system, &user, &cfg.ai.model);
+                if !confirm_cost(&est, yes)? {
+                    return Ok(());
                 }
 
-                cli::AiAction::Difficulty { repo, yes } => {
-                    let provider = ai::build_provider(&cfg.ai)?;
-                    let (owner, name) = cli::parse_repo(&repo)?;
-                    let client = github::build_client().context("Failed to build GitHub client")?;
-
-                    let issues = github::issues::fetch_and_score(&client, &owner, &name, 25)
-                        .await
-                        .unwrap_or_default();
-
-                    let issues_json = serde_json::to_string(&issues)?;
-                    let (system, user) = ai::prompts::build_difficulty_prompt(&repo, &issues_json);
-
-                    let est = ai::estimate::estimate(&system, &user, &cfg.ai.model);
-                    if !confirm_cost(&est, yes)? {
-                        return Ok(());
-                    }
-
-                    let response = provider.complete(&system, &user).await?;
-                    println!("{}", response);
-                }
+                let response = provider.complete(&system, &user).await?;
+                println!("{}", response);
             }
-        }
+        },
 
         Commands::Tools => {
             let tools = ai::tools::definitions();
@@ -357,22 +371,28 @@ async fn main() -> anyhow::Result<()> {
             let _args: serde_json::Value = serde_json::from_str(&args)?;
             match tool.as_str() {
                 "discover_repos" | "scan_issues" | "analyze_repo" | "ai_recommend" => {
-                    println!("{}", serde_json::json!({
-                        "error": format!("Tool '{}' dispatch via 'call' not yet implemented. Use the specific CLI command instead.", tool),
-                        "hint": format!("Try: gh-opportunities {} --help", match tool.as_str() {
-                            "discover_repos" => "discover",
-                            "scan_issues" => "scan",
-                            "analyze_repo" => "readme",
-                            "ai_recommend" => "ai recommend",
-                            _ => "help",
+                    println!(
+                        "{}",
+                        serde_json::json!({
+                            "error": format!("Tool '{}' dispatch via 'call' not yet implemented. Use the specific CLI command instead.", tool),
+                            "hint": format!("Try: gh-opportunities {} --help", match tool.as_str() {
+                                "discover_repos" => "discover",
+                                "scan_issues" => "scan",
+                                "analyze_repo" => "readme",
+                                "ai_recommend" => "ai recommend",
+                                _ => "help",
+                            })
                         })
-                    }));
+                    );
                 }
                 _ => {
-                    println!("{}", serde_json::json!({
-                        "error": format!("Unknown tool '{}'", tool),
-                        "available_tools": ["discover_repos", "scan_issues", "analyze_repo", "ai_recommend"]
-                    }));
+                    println!(
+                        "{}",
+                        serde_json::json!({
+                            "error": format!("Unknown tool '{}'", tool),
+                            "available_tools": ["discover_repos", "scan_issues", "analyze_repo", "ai_recommend"]
+                        })
+                    );
                 }
             }
         }
@@ -422,7 +442,10 @@ async fn main() -> anyhow::Result<()> {
                     security::SecurityReport::from_checks(vec![check])
                 }
                 Some(other) => {
-                    eprintln!("Unknown check '{}'. Available: audit, secrets, quality, license", other);
+                    eprintln!(
+                        "Unknown check '{}'. Available: audit, secrets, quality, license",
+                        other
+                    );
                     return Ok(());
                 }
                 None => {
@@ -446,7 +469,12 @@ async fn main() -> anyhow::Result<()> {
                     } else {
                         "FAIL"
                     };
-                    println!("  {}: {} ({} finding(s))", check.name, status, check.findings.len());
+                    println!(
+                        "  {}: {} ({} finding(s))",
+                        check.name,
+                        status,
+                        check.findings.len()
+                    );
                     for finding in &check.findings {
                         println!("    [{}] {}", finding.severity, finding.message);
                         if let Some(fix) = &finding.fix {
@@ -461,18 +489,16 @@ async fn main() -> anyhow::Result<()> {
             }
         }
 
-        Commands::Hooks { action } => {
-            match action {
-                cli::HooksAction::Install => {
-                    let path = hooks::install_hook()?;
-                    println!("Pre-push hook installed at {}", path.display());
-                }
-                cli::HooksAction::Remove => {
-                    let path = hooks::remove_hook()?;
-                    println!("Pre-push hook removed from {}", path.display());
-                }
+        Commands::Hooks { action } => match action {
+            cli::HooksAction::Install => {
+                let path = hooks::install_hook()?;
+                println!("Pre-push hook installed at {}", path.display());
             }
-        }
+            cli::HooksAction::Remove => {
+                let path = hooks::remove_hook()?;
+                println!("Pre-push hook removed from {}", path.display());
+            }
+        },
     }
 
     Ok(())

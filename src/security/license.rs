@@ -154,10 +154,7 @@ async fn fallback_metadata_check() -> CheckResult {
                 .get("name")
                 .and_then(|v| v.as_str())
                 .unwrap_or("unknown");
-            let license = pkg
-                .get("license")
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
+            let license = pkg.get("license").and_then(|v| v.as_str()).unwrap_or("");
 
             if license.is_empty() {
                 findings.push(Finding {
