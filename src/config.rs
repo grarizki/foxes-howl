@@ -190,11 +190,11 @@ impl Config {
 
     pub fn config_path() -> PathBuf {
         let base = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
-        base.join("gh-opportunities").join("config.toml")
+        base.join("gh-opp").join("config.toml")
     }
 
     pub fn default_toml() -> &'static str {
-        r#"# gh-opportunities configuration
+        r#"# gh-opp configuration
 
 [scoring]
 stale_days = 30

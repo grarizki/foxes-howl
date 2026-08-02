@@ -375,7 +375,7 @@ async fn main() -> anyhow::Result<()> {
                         "{}",
                         serde_json::json!({
                             "error": format!("Tool '{}' dispatch via 'call' not yet implemented. Use the specific CLI command instead.", tool),
-                            "hint": format!("Try: gh-opportunities {} --help", match tool.as_str() {
+                            "hint": format!("Try: gh-opp {} --help", match tool.as_str() {
                                 "discover_repos" => "discover",
                                 "scan_issues" => "scan",
                                 "analyze_repo" => "readme",

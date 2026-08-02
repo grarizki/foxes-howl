@@ -1,6 +1,6 @@
 <div align="center">
 
-# gh-opportunities
+# gh-opp
 
 **Find your next open-source contribution on GitHub.** Scan repositories for beginner-friendly issues, stale pull requests, README gaps, and code-quality signals — then rank them by how much you'll learn and how big an impact you can make.
 
@@ -20,7 +20,7 @@ Rust · Async (tokio) · Terminal UI (ratatui) · HTTP API (axum) · SQLite cach
 
 ## Why this exists
 
-Looking for good open-source contributions is slow. You open a repo, hunt for `good first issue` labels, guess whether issues are stale, and ignore more than you keep. **gh-opportunities automates that research** and turns it into a ranked, scored list you can act on in minutes — from the terminal, from a script, or from an AI agent.
+Looking for good open-source contributions is slow. You open a repo, hunt for `good first issue` labels, guess whether issues are stale, and ignore more than you keep. **gh-opp automates that research** and turns it into a ranked, scored list you can act on in minutes — from the terminal, from a script, or from an AI agent.
 
 It goes beyond "find issues labeled beginner." It scores repos on four signals:
 
@@ -77,10 +77,10 @@ export GITHUB_TOKEN="ghp_your_token_here"
 ### 2. Create the default config
 
 ```bash
-gh-opportunities init
+gh-opp init
 ```
 
-Writes `~/.config/gh-opportunities/config.toml` with sensible defaults for scoring weights, the AI provider, your profile, and security options. Tune it to your workflow.
+Writes `~/.config/gh-opp/config.toml` with sensible defaults for scoring weights, the AI provider, your profile, and security options. Tune it to your workflow.
 
 ### 3. Re-run the CI locally (optional but recommended)
 
@@ -100,23 +100,23 @@ cargo tarpaulin     # coverage report
 
 ```bash
 # Score good first issues in a repo
-gh-opportunities scan serde-rs/serde
+gh-opp scan serde-rs/serde
 
 # Discover high-opportunity Rust repos
-gh-opportunities discover --lang rust --min-stars 100
+gh-opp discover --lang rust --min-stars 100
 
 # Find issues nobody's touched in 30+ days
-gh-opportunities stale tokio-rs/tokio
+gh-opp stale tokio-rs/tokio
 
 # Audit a repo's community health + code quality
-gh-opportunities readme facebook/react
-gh-opportunities quality rust-lang/rust
+gh-opp readme facebook/react
+gh-opp quality rust-lang/rust
 
 # Watch it all in the interactive TUI
-gh-opportunities tui rust-lang/rust tokio-rs/tokio denoland/deno
+gh-opp tui rust-lang/rust tokio-rs/tokio denoland/deno
 
 # Repo health scores, ranked
-gh-opportunities discover --lang python --json
+gh-opp discover --lang python --json
 ```
 
 Every scan supports `--json` for scripting.
@@ -135,16 +135,16 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 
 ```bash
 # Summarize a repo's contribution landscape
-gh-opportunities ai analyze rust-lang/rust
+gh-opp ai analyze rust-lang/rust
 
 # Personalized recommendations from your skills
-gh-opportunities ai recommend tokio-rs/tokio --skills "rust,async,cli" --hours 10
+gh-opp ai recommend tokio-rs/tokio --skills "rust,async,cli" --hours 10
 
 # Rate issue difficulty
-gh-opportunities ai difficulty denoland/deno
+gh-opp ai difficulty denoland/deno
 
 # Skip the cost-confirmation prompt
-gh-opportunities ai analyze rust-lang/rust --yes
+gh-opp ai analyze rust-lang/rust --yes
 ```
 
 A token-cost estimate is shown before each LLM call; confirm or pass `--yes`.
@@ -153,18 +153,18 @@ A token-cost estimate is shown before each LLM call; confirm or pass `--yes`.
 
 ## Agent integration
 
-Expose gh-opportunities to AI tools or a local service:
+Expose gh-opp to AI tools or a local service:
 
 ```bash
 # Dump OpenAI function-calling tool definitions
-gh-opportunities tools
+gh-opp tools
 
 # Execute a tool call directly
-gh-opportunities call scan_issues --args '{"repo":"rust-lang/rust","limit":10}'
+gh-opp call scan_issues --args '{"repo":"rust-lang/rust","limit":10}'
 
 # Or run the HTTP server (binds 127.0.0.1, bearer-auth)
 export GH_OPP_TOKEN="your-secret-token"
-gh-opportunities serve --port 3737
+gh-opp serve --port 3737
 ```
 
 HTTP endpoints: `GET /health`, `GET /tools`, `POST /call`, `POST /ai/analyze`, `POST /ai/recommend`, `POST /ai/difficulty`, `POST /security`, `GET /profile`.
@@ -175,20 +175,20 @@ HTTP endpoints: `GET /health`, `GET /tools`, `POST /call`, `POST /ai/analyze`, `
 
 ```bash
 # All checks
-gh-opportunities security
+gh-opp security
 
 # One check at a time
-gh-opportunities security --check audit
-gh-opportunities security --check secrets
-gh-opportunities security --check quality
-gh-opportunities security --check license
+gh-opp security --check audit
+gh-opp security --check secrets
+gh-opp security --check quality
+gh-opp security --check license
 
 # JSON output, or auto-fix what's fixable (cargo fmt)
-gh-opportunities security --json
-gh-opportunities security --fix
+gh-opp security --json
+gh-opp security --fix
 
 # Install as a pre-push hook
-gh-opportunities hooks install
+gh-opp hooks install
 ```
 
 The four checks: **audit** (cargo-audit CVEs), **secrets** (regex API/token/password scanner), **license** (cargo-deny / fallback metadata), **quality** (fmt + clippy + test). The pre-push hook **blocks the push if any check fails**.

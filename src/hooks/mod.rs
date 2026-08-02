@@ -10,22 +10,22 @@ pub fn install_hook() -> anyhow::Result<PathBuf> {
 
     if hook_path.exists() {
         let content = std::fs::read_to_string(&hook_path)?;
-        if !content.contains("# Installed by gh-opportunities") {
+        if !content.contains("# Installed by gh-opp") {
             anyhow::bail!(
-                "Hook exists at {} but wasn't installed by gh-opportunities. Remove manually.",
+                "Hook exists at {} but wasn't installed by gh-opp. Remove manually.",
                 hook_path.display()
             );
         }
     }
 
     let hook_content = r#"#!/bin/sh
-# Installed by gh-opportunities
+# Installed by gh-opp
 echo "Running pre-push security checks..."
-gh-opportunities security
+gh-opp security
 result=$?
 if [ $result -ne 0 ]; then
     echo "Security checks failed. Push blocked."
-    echo "Run 'gh-opportunities security' for details."
+    echo "Run 'gh-opp security' for details."
     exit 1
 fi
 "#;
@@ -53,9 +53,9 @@ pub fn remove_hook() -> anyhow::Result<PathBuf> {
     }
 
     let content = std::fs::read_to_string(&hook_path)?;
-    if !content.contains("# Installed by gh-opportunities") {
+    if !content.contains("# Installed by gh-opp") {
         anyhow::bail!(
-            "Hook at {} wasn't installed by gh-opportunities. Remove manually.",
+            "Hook at {} wasn't installed by gh-opp. Remove manually.",
             hook_path.display()
         );
     }
@@ -92,17 +92,17 @@ mod tests {
     #[test]
     fn test_hook_content_format() {
         let hook = r#"#!/bin/sh
-# Installed by gh-opportunities
+# Installed by gh-opp
 echo "Running pre-push security checks..."
-gh-opportunities security
+gh-opp security
 result=$?
 if [ $result -ne 0 ]; then
     echo "Security checks failed. Push blocked."
-    echo "Run 'gh-opportunities security' for details."
+    echo "Run 'gh-opp security' for details."
     exit 1
 fi
 "#;
-        assert!(hook.contains("# Installed by gh-opportunities"));
-        assert!(hook.contains("gh-opportunities security"));
+        assert!(hook.contains("# Installed by gh-opp"));
+        assert!(hook.contains("gh-opp security"));
     }
 }

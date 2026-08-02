@@ -32,7 +32,7 @@ pub async fn run_server(
         .layer(axum::Extension(config));
 
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
-    println!("gh-opportunities server");
+    println!("gh-opp server");
     println!("  Listening: {}", addr);
     println!("  Token:     {}", token_hash);
     println!("  Tools:     GET  /tools");
