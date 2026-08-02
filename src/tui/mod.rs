@@ -112,11 +112,7 @@ fn draw(f: &mut ratatui::Frame, app: &App) {
         Screen::Detail => 3,
     };
     let tabs = Tabs::new(titles)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title("gh-opportunities"),
-        )
+        .block(Block::default().borders(Borders::ALL).title("gh-opp"))
         .select(selected_tab)
         .style(Style::default().fg(Color::White))
         .highlight_style(

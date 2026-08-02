@@ -66,7 +66,7 @@ impl Cache {
 
     fn db_path() -> anyhow::Result<PathBuf> {
         let base = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
-        Ok(base.join("gh-opportunities").join("cache.db"))
+        Ok(base.join("gh-opp").join("cache.db"))
     }
 
     pub fn store(&self, repo: &str, issues: &[ScoredIssue]) -> anyhow::Result<()> {
