@@ -1,0 +1,35 @@
+name: Tag Generate
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read version from Cargo.toml
+        id: ver
+        run: |
+          echo "version=$(grep -m1 '^version = ' Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')" >> "$GITHUB_OUTPUT"
+
+      - name: Create tag if missing
+        run: |
+          VER="v${{ steps.ver.outputs.version }}"
+          if git rev-parse -q --verify "refs/tags/$VER" >/dev/null; then
+            echo "Tag $VER already exists; nothing to do"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "$VER" -m "Release $VER"
+            git push origin "$VER"
+            echo "Pushed tag $VER"
+          fi
