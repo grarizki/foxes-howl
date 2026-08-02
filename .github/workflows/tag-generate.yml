@@ -4,6 +4,13 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump (none = tag current version only)"
+        required: false
+        default: "none"
+        type: choice
+        options: [none, patch, minor]
 
 permissions:
   contents: write
@@ -16,21 +23,50 @@ jobs:
         with:
           fetch-depth: 0
 
+      # --- bump version on workflow_dispatch ---
+      - name: Bump version (if requested)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.bump != 'none'
+        shell: bash
+        run: |
+          set -euo pipefail
+          CURRENT=$(grep -m1 '^version = ' Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          BUMP="${{ github.event.inputs.bump }}"
+          if [ "$BUMP" = "patch" ]; then
+            NEW="$MAJOR.$MINOR.$((PATCH + 1))"
+          elif [ "$BUMP" = "minor" ]; then
+            NEW="$MAJOR.$((MINOR + 1)).0"
+          fi
+          echo "Bumping $CURRENT -> $NEW"
+          sed -i "s/^version = \"$CURRENT\"/version = \"$NEW\"/" Cargo.toml
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Cargo.toml
+          git commit -m "chore: bump version to v$NEW [skip ci]"
+          git push origin HEAD:main
+          echo "version=$NEW" >> "$GITHUB_OUTPUT"
+
+      # --- read final version ---
       - name: Read version from Cargo.toml
         id: ver
         run: |
           echo "version=$(grep -m1 '^version = ' Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')" >> "$GITHUB_OUTPUT"
 
-      - name: Create tag + changelog if missing
+      # --- changelog: append new section only ---
+      - name: Append changelog section (idempotent)
         shell: bash
         run: |
           set -euo pipefail
           VER="v${{ steps.ver.outputs.version }}"
-          if git rev-parse -q --verify "refs/tags/$VER" >/dev/null; then
-            echo "Tag $VER already exists; nothing to do"
+
+          # skip if section already exists
+          if grep -qF "## [$VER]" CHANGELOG.md 2>/dev/null; then
+            echo "Changelog section [$VER] already exists; skipping"
             exit 0
           fi
 
+          # find previous version tag for log range
           PREV=$(git tag --sort=-v:refname | grep -v "^$VER$" | head -1 || true)
           RANGE=""
           if [ -n "$PREV" ]; then RANGE="$PREV..HEAD"; fi
@@ -42,23 +78,40 @@ jobs:
           fi
           if [ -z "$BODY" ]; then BODY="- No changes captured from git log."; fi
 
-          touch CHANGELOG.md
-          # keep older sections after the first version header
-          OLDER=$(sed '1,/^## \[v[0-9]/d' CHANGELOG.md || true)
+          # prepend new section after header, before existing version sections
+          if [ ! -f CHANGELOG.md ]; then
+            {
+              printf '# Changelog\n'
+              printf '\nAll notable changes documented here. Generated per tag by tag-generate.yml.\n'
+            } > CHANGELOG.md
+          fi
+
+          HEADER=$(awk '/^## \[/{exit} {print}' CHANGELOG.md)
+          REST=$(awk 'BEGIN{f=0} /^## \[/{f=1} f{print}' CHANGELOG.md)
 
           {
-            printf '# Changelog\n'
-            printf '\nAll notable changes documented here. Generated per tag by tag-generate.yml.\n'
+            printf '%s\n' "$HEADER"
             printf '\n## [%s]\n\n%s\n' "$VER" "$BODY"
-            if [ -n "$OLDER" ]; then printf '\n%s\n' "$OLDER"; fi
+            if [ -n "$REST" ]; then printf '\n%s\n' "$REST"; fi
           } > CHANGELOG.tmp && mv CHANGELOG.tmp CHANGELOG.md
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add CHANGELOG.md
-          git commit -m "docs: changelog for $VER" || true
-          git pull --rebase origin main || true
+          git commit -m "docs: changelog for $VER [skip ci]"
           git push origin HEAD:main
+          echo "Appended changelog section [$VER]"
+
+      # --- tag: create if missing ---
+      - name: Create tag if missing
+        shell: bash
+        run: |
+          set -euo pipefail
+          VER="v${{ steps.ver.outputs.version }}"
+          if git rev-parse -q --verify "refs/tags/$VER" >/dev/null; then
+            echo "Tag $VER already exists; skipping"
+            exit 0
+          fi
           git tag -a "$VER" -m "Release $VER"
           git push origin "$VER"
-          echo "Pushed tag $VER + changelog"
+          echo "Pushed tag $VER"
