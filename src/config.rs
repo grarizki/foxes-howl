@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct Config {
     #[serde(default)]
     pub scoring: ScoringConfig,
@@ -9,14 +9,18 @@ pub struct Config {
     #[allow(dead_code)]
     pub display: DisplayConfig,
     #[serde(default)]
+    #[allow(dead_code)]
     pub ai: AiConfig,
     #[serde(default)]
+    #[allow(dead_code)]
     pub serve: ServeConfig,
     #[serde(default)]
+    #[allow(dead_code)]
     pub security: SecurityConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct AiConfig {
     #[serde(default = "default_ai_provider")]
     pub provider: String,
@@ -45,12 +49,14 @@ pub struct UserProfile {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct ServeConfig {
     #[serde(default = "default_token_env")]
     pub token_env: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
+#[allow(dead_code)]
 pub struct SecurityConfig {
     #[serde(default)]
     pub deny_config_path: Option<String>,
@@ -230,18 +236,6 @@ secret_patterns = []
             std::fs::write(&path, Self::default_toml())?;
         }
         Ok(path)
-    }
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            scoring: ScoringConfig::default(),
-            display: DisplayConfig::default(),
-            ai: AiConfig::default(),
-            serve: ServeConfig::default(),
-            security: SecurityConfig::default(),
-        }
     }
 }
 

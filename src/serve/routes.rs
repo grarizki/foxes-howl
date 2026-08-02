@@ -137,10 +137,15 @@ pub async fn ai_difficulty(
 
 pub async fn security_check(
     Extension(token): Extension<String>,
+    Extension(config): Extension<crate::config::Config>,
     headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     check_auth(&headers, &token)?;
 
-    let report = crate::security::run_all(None, &[]).await;
+    let report = crate::security::run_all(
+        config.security.deny_config_path.as_deref(),
+        &config.security.secret_patterns,
+    )
+    .await;
     Ok(Json(serde_json::json!(report)))
 }

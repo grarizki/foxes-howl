@@ -53,7 +53,10 @@ pub fn check_readme_content(readme_body: &str) -> ReadmeReport {
         .lines()
         .filter(|line| {
             let lower = line.to_lowercase();
-            lower.contains("](") && !lower.contains("](http") && !lower.contains("](#") && !lower.contains("](mailto:")
+            lower.contains("](")
+                && !lower.contains("](http")
+                && !lower.contains("](#")
+                && !lower.contains("](mailto:")
         })
         .map(|l| l.trim().to_string())
         .collect();
@@ -78,11 +81,7 @@ pub async fn analyze_repo(
 ) -> anyhow::Result<ReadmeReport> {
     let repo_info = client.repos(owner, repo).get().await?;
 
-    let readme_result = client
-        .repos(owner, repo)
-        .get_readme()
-        .send()
-        .await;
+    let readme_result = client.repos(owner, repo).get_readme().send().await;
     let readme_body = match readme_result {
         Ok(r) => r.decoded_content().unwrap_or_default(),
         Err(_) => String::new(),

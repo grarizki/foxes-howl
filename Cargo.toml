@@ -2,6 +2,7 @@
 name = "gh-opportunities"
 version = "0.2.0"
 edition = "2021"
+rust-version = "1.88"
 description = "Find open source contribution opportunities on GitHub"
 license = "MIT"
 
@@ -20,7 +21,7 @@ chrono = { version = "0.4", features = ["serde"] }
 rusqlite = { version = "0.35", features = ["bundled"] }
 dirs = "6"
 toml = "0.8"
-ratatui = "0.29"
+ratatui = "0.30"
 crossterm = "0.28"
 regex = "1"
 reqwest = { version = "0.12", features = ["rustls-tls", "json"] }

@@ -103,9 +103,10 @@ impl LlmProvider for AnthropicProvider {
                     .await?;
 
                 if !response.status().is_success() {
-                    let error: ErrorResponse = response.json().await.unwrap_or(ErrorResponse {
-                        error: None,
-                    });
+                    let error: ErrorResponse = response
+                        .json()
+                        .await
+                        .unwrap_or(ErrorResponse { error: None });
                     let msg = error
                         .error
                         .map(|e| e.message)
@@ -122,9 +123,10 @@ impl LlmProvider for AnthropicProvider {
             }
 
             if !status.is_success() {
-                let error: ErrorResponse = response.json().await.unwrap_or(ErrorResponse {
-                    error: None,
-                });
+                let error: ErrorResponse = response
+                    .json()
+                    .await
+                    .unwrap_or(ErrorResponse { error: None });
                 let msg = error
                     .error
                     .map(|e| e.message)

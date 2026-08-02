@@ -60,9 +60,9 @@ pub fn check_auth(headers: &HeaderMap, expected_token: &str) -> Result<(), Statu
     if auth == format!("Bearer {}", expected_token) {
         Ok(())
     } else if auth.is_empty() {
-        Err(StatusCode::FORBIDDEN)
-    } else {
         Err(StatusCode::UNAUTHORIZED)
+    } else {
+        Err(StatusCode::FORBIDDEN)
     }
 }
 
@@ -87,13 +87,13 @@ mod tests {
     fn test_check_auth_invalid() {
         let mut headers = HeaderMap::new();
         headers.insert("authorization", HeaderValue::from_static("Bearer wrong-token"));
-        assert_eq!(check_auth(&headers, "correct-token"), Err(StatusCode::UNAUTHORIZED));
+        assert_eq!(check_auth(&headers, "correct-token"), Err(StatusCode::FORBIDDEN));
     }
 
     #[test]
     fn test_check_auth_missing() {
         let headers = HeaderMap::new();
-        assert_eq!(check_auth(&headers, "any-token"), Err(StatusCode::FORBIDDEN));
+        assert_eq!(check_auth(&headers, "any-token"), Err(StatusCode::UNAUTHORIZED));
     }
 
     #[test]

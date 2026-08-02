@@ -111,9 +111,10 @@ impl LlmProvider for OpenAiProvider {
                     .await?;
 
                 if !response.status().is_success() {
-                    let error: ErrorResponse = response.json().await.unwrap_or(ErrorResponse {
-                        error: None,
-                    });
+                    let error: ErrorResponse = response
+                        .json()
+                        .await
+                        .unwrap_or(ErrorResponse { error: None });
                     let msg = error
                         .error
                         .map(|e| e.message)
@@ -130,9 +131,10 @@ impl LlmProvider for OpenAiProvider {
             }
 
             if !status.is_success() {
-                let error: ErrorResponse = response.json().await.unwrap_or(ErrorResponse {
-                    error: None,
-                });
+                let error: ErrorResponse = response
+                    .json()
+                    .await
+                    .unwrap_or(ErrorResponse { error: None });
                 let msg = error
                     .error
                     .map(|e| e.message)
@@ -202,9 +204,6 @@ mod tests {
     fn test_error_response_deserialization() {
         let json = r#"{"error":{"message":"Invalid API key"}}"#;
         let resp: ErrorResponse = serde_json::from_str(json).unwrap();
-        assert_eq!(
-            resp.error.unwrap().message,
-            "Invalid API key"
-        );
+        assert_eq!(resp.error.unwrap().message, "Invalid API key");
     }
 }

@@ -13,7 +13,7 @@ pub fn estimate(system: &str, user: &str, model: &str) -> TokenEstimate {
     let input_tokens = (input_chars / 4.0).ceil() as u32;
 
     // Estimate output as ~30% of input, min 200, max 2048
-    let estimated_output_tokens = ((input_tokens as f64 * 0.3) as u32).max(200).min(2048);
+    let estimated_output_tokens = ((input_tokens as f64 * 0.3) as u32).clamp(200, 2048);
 
     let (input_price, output_price) = model_pricing(model);
     let estimated_cost_usd =

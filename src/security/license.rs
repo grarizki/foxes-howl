@@ -117,7 +117,7 @@ fn parse_deny_json(json_str: &str, success: bool) -> CheckResult {
 
 async fn fallback_metadata_check() -> CheckResult {
     let output = tokio::process::Command::new("cargo")
-        .args(["metadata", "--format-version", "1", "--no-deps"])
+        .args(["metadata", "--format-version", "1"])
         .output()
         .await;
 

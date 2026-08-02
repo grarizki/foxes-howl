@@ -96,7 +96,9 @@ fn should_skip(path: &str) -> bool {
     skip_prefixes.iter().any(|p| path.starts_with(p))
 }
 
-fn builtin_patterns() -> Vec<(&'static str, regex::Regex)> {
+use std::sync::LazyLock;
+
+static BUILTIN_PATTERNS: LazyLock<Vec<(&'static str, regex::Regex)>> = LazyLock::new(|| {
     vec![
         (
             "AWS Access Key",
@@ -122,6 +124,10 @@ fn builtin_patterns() -> Vec<(&'static str, regex::Regex)> {
             .unwrap(),
         ),
     ]
+});
+
+fn builtin_patterns() -> Vec<(&'static str, regex::Regex)> {
+    BUILTIN_PATTERNS.clone()
 }
 
 #[cfg(test)]

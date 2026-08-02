@@ -55,8 +55,9 @@ pub async fn discover_repos(
             .collect::<Vec<_>>()
             .join("/");
 
-        let entry = repos.entry(full_name.clone()).or_insert_with(|| {
-            DiscoveredRepo {
+        let entry = repos
+            .entry(full_name.clone())
+            .or_insert_with(|| DiscoveredRepo {
                 full_name: full_name.clone(),
                 url: format!("https://github.com/{}", full_name),
                 description: None,
@@ -64,8 +65,7 @@ pub async fn discover_repos(
                 language: None,
                 good_first_issues: 0,
                 score: 0.0,
-            }
-        });
+            });
 
         entry.good_first_issues += 1;
     }
@@ -104,7 +104,11 @@ pub async fn discover_repos(
     }
 
     // Sort by score descending
-    result.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+    result.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     result.truncate(limit);
 
     Ok(result)
@@ -127,7 +131,13 @@ mod tests {
     fn test_score_no_stars() {
         let issues = 3u64;
         let stars = 0u64;
-        let score = issues as f64 * (1.0 + if stars > 0 { (stars as f64).log10() } else { 0.0 });
+        let score = issues as f64
+            * (1.0
+                + if stars > 0 {
+                    (stars as f64).log10()
+                } else {
+                    0.0
+                });
         assert!((score - 3.0).abs() < 0.01);
     }
 }
