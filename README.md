@@ -16,8 +16,6 @@ Rust · Async (tokio) · Terminal UI (ratatui) · HTTP API (axum) · SQLite cach
   <a href="https://github.com/grarizki/foxes-howl"><img src="https://img.shields.io/github/stars/grarizki/foxes-howl?style=social"></a>
 </p>
 
-</div>
-
 ---
 
 ## Why this exists
