@@ -11,7 +11,7 @@ id = "cargo-fmt"
 name = "cargo fmt"
 entry = "cargo fmt --check"
 language = "system"
-files = "\\.rs$"
+files = "\\.(rs|toml)$"
 pass_filenames = false
 
 [[repos.hooks]]
@@ -19,7 +19,7 @@ id = "cargo-clippy"
 name = "cargo clippy"
 entry = "cargo clippy -- -W clippy::all -D clippy::correctness -D clippy::suspicious"
 language = "system"
-files = "\\.rs$"
+files = "\\.(rs|toml)$"
 pass_filenames = false
 
 [[repos.hooks]]
@@ -27,6 +27,6 @@ id = "cargo-test"
 name = "cargo test"
 entry = "cargo test"
 language = "system"
-files = "\\.rs$"
+files = "\\.(rs|toml)$"
 pass_filenames = false
 stages = ["pre-push"]
