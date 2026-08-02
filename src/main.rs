@@ -13,6 +13,65 @@ use anyhow::Context;
 use clap::Parser;
 use cli::{Cli, Commands};
 use comfy_table::{presets::UTF8_FULL, Table};
+use std::io::{IsTerminal, Write};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+
+/// Run `fut` with a spinner on stderr. `enabled=false` (JSON/non-TTY) → no spinner.
+async fn with_spinner<T, F>(msg: &str, enabled: bool, fut: F) -> T
+where
+    F: std::future::Future<Output = T>,
+{
+    if !enabled || !std::io::stderr().is_terminal() {
+        return fut.await;
+    }
+
+    let stop = Arc::new(AtomicBool::new(false));
+    let handle = {
+        let stop = stop.clone();
+        let msg = msg.to_string();
+        std::thread::spawn(move || {
+            const FRAMES: [char; 10] = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+            for frame in FRAMES.iter().cycle() {
+                if stop.load(Ordering::Relaxed) {
+                    break;
+                }
+                let _ = write!(std::io::stderr(), "\r{msg} {frame} \x1b[K");
+                std::io::stderr().flush().ok();
+                std::thread::sleep(std::time::Duration::from_millis(80));
+            }
+        })
+    };
+
+    let out = fut.await;
+    stop.store(true, Ordering::Relaxed);
+    handle.join().ok();
+    let _ = write!(std::io::stderr(), "\r\x1b[K");
+    std::io::stderr().flush().ok();
+    out
+}
+
+/// Read `.env` in the working dir into the process env, without overriding
+/// variables already set (real shell env wins).
+fn load_dotenv() {
+    let Ok(contents) = std::fs::read_to_string(".env") else {
+        return;
+    };
+    for line in contents.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let Some((key, value)) = line.split_once('=') else {
+            continue;
+        };
+        let key = key.trim();
+        if key.is_empty() || std::env::var_os(key).is_some() {
+            continue;
+        }
+        std::env::set_var(key, value.trim().trim_matches(|c| c == '"' || c == '\''));
+    }
+}
 
 fn confirm_cost(est: &ai::estimate::TokenEstimate, yes: bool) -> anyhow::Result<bool> {
     if yes {
@@ -37,6 +96,8 @@ async fn main() -> anyhow::Result<()> {
 
     let cli = Cli::parse();
     let cfg = config::Config::load();
+
+    load_dotenv();
 
     match cli.command {
         Commands::Scan {
@@ -71,9 +132,13 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
 
-            issues = github::issues::fetch_and_score(&client, &owner, &name, limit)
-                .await
-                .context("Failed to fetch issues")?;
+            issues = with_spinner(
+                "Fetching issues",
+                !json,
+                github::issues::fetch_and_score(&client, &owner, &name, limit),
+            )
+            .await
+            .context("Failed to fetch issues")?;
 
             // store in cache
             if let Some(ref cache) = cache {
@@ -96,13 +161,20 @@ async fn main() -> anyhow::Result<()> {
             let (owner, name) = cli::parse_repo(&repo)?;
             let client = github::build_client().context("Failed to build GitHub client")?;
 
-            let stale_issues =
-                analysis::stale::find_stale_issues(&client, &owner, &name, days, limit)
-                    .await
-                    .context("Failed to fetch stale issues")?;
-            let stale_prs = analysis::stale::find_stale_prs(&client, &owner, &name, days, limit)
-                .await
-                .context("Failed to fetch stale PRs")?;
+            let stale_issues = with_spinner(
+                "Analyzing stale items",
+                !json,
+                analysis::stale::find_stale_issues(&client, &owner, &name, days, limit),
+            )
+            .await
+            .context("Failed to fetch stale issues")?;
+            let stale_prs = with_spinner(
+                "Analyzing stale items",
+                !json,
+                analysis::stale::find_stale_prs(&client, &owner, &name, days, limit),
+            )
+            .await
+            .context("Failed to fetch stale PRs")?;
 
             if json {
                 let output = serde_json::json!({
@@ -119,9 +191,13 @@ async fn main() -> anyhow::Result<()> {
             let (owner, name) = cli::parse_repo(&repo)?;
             let client = github::build_client().context("Failed to build GitHub client")?;
 
-            let report = analysis::readme::analyze_repo(&client, &owner, &name)
-                .await
-                .context("Failed to analyze README")?;
+            let report = with_spinner(
+                "Analyzing README",
+                !json,
+                analysis::readme::analyze_repo(&client, &owner, &name),
+            )
+            .await
+            .context("Failed to analyze README")?;
 
             if json {
                 println!("{}", serde_json::to_string_pretty(&report)?);
@@ -134,9 +210,13 @@ async fn main() -> anyhow::Result<()> {
             let (owner, name) = cli::parse_repo(&repo)?;
             let client = github::build_client().context("Failed to build GitHub client")?;
 
-            let report = analysis::code_quality::analyze_repo(&client, &owner, &name)
-                .await
-                .context("Failed to analyze code quality")?;
+            let report = with_spinner(
+                "Analyzing code quality",
+                !json,
+                analysis::code_quality::analyze_repo(&client, &owner, &name),
+            )
+            .await
+            .context("Failed to analyze code quality")?;
 
             if json {
                 println!("{}", serde_json::to_string_pretty(&report)?);
@@ -155,12 +235,16 @@ async fn main() -> anyhow::Result<()> {
         } => {
             let client = github::build_client().context("Failed to build GitHub client")?;
 
-            let repos = github::discover::discover_repos(
-                &client,
-                lang.as_deref(),
-                topic.as_deref(),
-                min_stars,
-                limit,
+            let repos = with_spinner(
+                "Discovering repos",
+                !json,
+                github::discover::discover_repos(
+                    &client,
+                    lang.as_deref(),
+                    topic.as_deref(),
+                    min_stars,
+                    limit,
+                ),
             )
             .await
             .context("Failed to discover repos")?;
@@ -253,27 +337,43 @@ async fn main() -> anyhow::Result<()> {
                 let (owner, name) = cli::parse_repo(&repo)?;
                 let client = github::build_client().context("Failed to build GitHub client")?;
 
-                let issues = github::issues::fetch_and_score(&client, &owner, &name, 25)
-                    .await
-                    .unwrap_or_default();
-                let stale_count = analysis::stale::find_stale_issues(
-                    &client,
-                    &owner,
-                    &name,
-                    cfg.scoring.stale_days,
-                    50,
+                let issues = with_spinner(
+                    "Fetching issues",
+                    true,
+                    github::issues::fetch_and_score(&client, &owner, &name, 25),
+                )
+                .await
+                .unwrap_or_default();
+                let stale_count = with_spinner(
+                    "Analyzing stale items",
+                    true,
+                    analysis::stale::find_stale_issues(
+                        &client,
+                        &owner,
+                        &name,
+                        cfg.scoring.stale_days,
+                        50,
+                    ),
                 )
                 .await
                 .map(|s| s.len())
                 .unwrap_or(0);
-                let readme = analysis::readme::analyze_repo(&client, &owner, &name)
-                    .await
-                    .map(|r| r.score)
-                    .unwrap_or(0.0);
-                let quality = analysis::code_quality::analyze_repo(&client, &owner, &name)
-                    .await
-                    .map(|r| r.score)
-                    .unwrap_or(0.0);
+                let readme = with_spinner(
+                    "Analyzing README",
+                    true,
+                    analysis::readme::analyze_repo(&client, &owner, &name),
+                )
+                .await
+                .map(|r| r.score)
+                .unwrap_or(0.0);
+                let quality = with_spinner(
+                    "Analyzing code quality",
+                    true,
+                    analysis::code_quality::analyze_repo(&client, &owner, &name),
+                )
+                .await
+                .map(|r| r.score)
+                .unwrap_or(0.0);
 
                 let issues_json = serde_json::to_string(&issues)?;
                 let (system, user) = ai::prompts::build_analyze_prompt(
@@ -303,15 +403,23 @@ async fn main() -> anyhow::Result<()> {
                 let (owner, name) = cli::parse_repo(&repo)?;
                 let client = github::build_client().context("Failed to build GitHub client")?;
 
-                let issues = github::issues::fetch_and_score(&client, &owner, &name, 25)
-                    .await
-                    .unwrap_or_default();
-                let stale = analysis::stale::find_stale_issues(
-                    &client,
-                    &owner,
-                    &name,
-                    cfg.scoring.stale_days,
-                    50,
+                let issues = with_spinner(
+                    "Fetching issues",
+                    true,
+                    github::issues::fetch_and_score(&client, &owner, &name, 25),
+                )
+                .await
+                .unwrap_or_default();
+                let stale = with_spinner(
+                    "Analyzing stale items",
+                    true,
+                    analysis::stale::find_stale_issues(
+                        &client,
+                        &owner,
+                        &name,
+                        cfg.scoring.stale_days,
+                        50,
+                    ),
                 )
                 .await
                 .unwrap_or_default();
@@ -345,9 +453,13 @@ async fn main() -> anyhow::Result<()> {
                 let (owner, name) = cli::parse_repo(&repo)?;
                 let client = github::build_client().context("Failed to build GitHub client")?;
 
-                let issues = github::issues::fetch_and_score(&client, &owner, &name, 25)
-                    .await
-                    .unwrap_or_default();
+                let issues = with_spinner(
+                    "Fetching issues",
+                    true,
+                    github::issues::fetch_and_score(&client, &owner, &name, 25),
+                )
+                .await
+                .unwrap_or_default();
 
                 let issues_json = serde_json::to_string(&issues)?;
                 let (system, user) = ai::prompts::build_difficulty_prompt(&repo, &issues_json);
