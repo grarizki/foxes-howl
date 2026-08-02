@@ -14,6 +14,23 @@ use clap::Parser;
 use cli::{Cli, Commands};
 use comfy_table::{presets::UTF8_FULL, Table};
 
+fn confirm_cost(est: &ai::estimate::TokenEstimate, yes: bool) -> anyhow::Result<bool> {
+    if yes {
+        return Ok(true);
+    }
+    println!("{}", ai::estimate::format_estimate(est));
+    print!("Proceed? [Y/n] ");
+    use std::io::Write;
+    std::io::stdout().flush()?;
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input)?;
+    if input.trim().to_lowercase() == "n" {
+        println!("Aborted.");
+        return Ok(false);
+    }
+    Ok(true)
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
@@ -229,6 +246,259 @@ async fn main() -> anyhow::Result<()> {
             let path = config::Config::init()?;
             println!("Config created at: {}", path.display());
         }
+
+        Commands::Ai { action } => match action {
+            cli::AiAction::Analyze { repo, yes } => {
+                let provider = ai::build_provider(&cfg.ai)?;
+                let (owner, name) = cli::parse_repo(&repo)?;
+                let client = github::build_client().context("Failed to build GitHub client")?;
+
+                let issues = github::issues::fetch_and_score(&client, &owner, &name, 25)
+                    .await
+                    .unwrap_or_default();
+                let stale_count = analysis::stale::find_stale_issues(
+                    &client,
+                    &owner,
+                    &name,
+                    cfg.scoring.stale_days,
+                    50,
+                )
+                .await
+                .map(|s| s.len())
+                .unwrap_or(0);
+                let readme = analysis::readme::analyze_repo(&client, &owner, &name)
+                    .await
+                    .map(|r| r.score)
+                    .unwrap_or(0.0);
+                let quality = analysis::code_quality::analyze_repo(&client, &owner, &name)
+                    .await
+                    .map(|r| r.score)
+                    .unwrap_or(0.0);
+
+                let issues_json = serde_json::to_string(&issues)?;
+                let (system, user) = ai::prompts::build_analyze_prompt(
+                    &repo,
+                    &issues_json,
+                    stale_count,
+                    readme,
+                    quality,
+                );
+
+                let est = ai::estimate::estimate(&system, &user, &cfg.ai.model);
+                if !confirm_cost(&est, yes)? {
+                    return Ok(());
+                }
+
+                let response = provider.complete(&system, &user).await?;
+                println!("{}", response);
+            }
+
+            cli::AiAction::Recommend {
+                repo,
+                skills,
+                hours,
+                yes,
+            } => {
+                let provider = ai::build_provider(&cfg.ai)?;
+                let (owner, name) = cli::parse_repo(&repo)?;
+                let client = github::build_client().context("Failed to build GitHub client")?;
+
+                let issues = github::issues::fetch_and_score(&client, &owner, &name, 25)
+                    .await
+                    .unwrap_or_default();
+                let stale = analysis::stale::find_stale_issues(
+                    &client,
+                    &owner,
+                    &name,
+                    cfg.scoring.stale_days,
+                    50,
+                )
+                .await
+                .unwrap_or_default();
+
+                let profile = config::UserProfile {
+                    name: cfg.ai.profile.name.clone(),
+                    skills: skills
+                        .map(|s| s.split(',').map(|x| x.trim().to_string()).collect())
+                        .unwrap_or_else(|| cfg.ai.profile.skills.clone()),
+                    experience: cfg.ai.profile.experience.clone(),
+                    hours_per_week: hours,
+                    interests: cfg.ai.profile.interests.clone(),
+                };
+
+                let issues_json = serde_json::to_string(&issues)?;
+                let stale_json = serde_json::to_string(&stale)?;
+                let (system, user) =
+                    ai::prompts::build_recommend_prompt(&repo, &profile, &issues_json, &stale_json);
+
+                let est = ai::estimate::estimate(&system, &user, &cfg.ai.model);
+                if !confirm_cost(&est, yes)? {
+                    return Ok(());
+                }
+
+                let response = provider.complete(&system, &user).await?;
+                println!("{}", response);
+            }
+
+            cli::AiAction::Difficulty { repo, yes } => {
+                let provider = ai::build_provider(&cfg.ai)?;
+                let (owner, name) = cli::parse_repo(&repo)?;
+                let client = github::build_client().context("Failed to build GitHub client")?;
+
+                let issues = github::issues::fetch_and_score(&client, &owner, &name, 25)
+                    .await
+                    .unwrap_or_default();
+
+                let issues_json = serde_json::to_string(&issues)?;
+                let (system, user) = ai::prompts::build_difficulty_prompt(&repo, &issues_json);
+
+                let est = ai::estimate::estimate(&system, &user, &cfg.ai.model);
+                if !confirm_cost(&est, yes)? {
+                    return Ok(());
+                }
+
+                let response = provider.complete(&system, &user).await?;
+                println!("{}", response);
+            }
+        },
+
+        Commands::Tools => {
+            let tools = ai::tools::definitions();
+            println!("{}", serde_json::to_string_pretty(&tools)?);
+        }
+
+        Commands::Call { tool, args } => {
+            let _args: serde_json::Value = serde_json::from_str(&args)?;
+            match tool.as_str() {
+                "discover_repos" | "scan_issues" | "analyze_repo" | "ai_recommend" => {
+                    println!(
+                        "{}",
+                        serde_json::json!({
+                            "error": format!("Tool '{}' dispatch via 'call' not yet implemented. Use the specific CLI command instead.", tool),
+                            "hint": format!("Try: gh-opportunities {} --help", match tool.as_str() {
+                                "discover_repos" => "discover",
+                                "scan_issues" => "scan",
+                                "analyze_repo" => "readme",
+                                "ai_recommend" => "ai recommend",
+                                _ => "help",
+                            })
+                        })
+                    );
+                }
+                _ => {
+                    println!(
+                        "{}",
+                        serde_json::json!({
+                            "error": format!("Unknown tool '{}'", tool),
+                            "available_tools": ["discover_repos", "scan_issues", "analyze_repo", "ai_recommend"]
+                        })
+                    );
+                }
+            }
+        }
+
+        Commands::Serve { port } => {
+            let token_env = cfg.serve.token_env.clone();
+            serve::run_server(port, &token_env, cfg).await?;
+        }
+
+        Commands::Security { json, check, fix } => {
+            if fix {
+                // Auto-fix: only cargo fmt for now
+                println!("Running cargo fmt...");
+                let output = tokio::process::Command::new("cargo")
+                    .args(["fmt"])
+                    .output()
+                    .await;
+                match output {
+                    Ok(o) if o.status.success() => println!("Formatted."),
+                    Ok(o) => {
+                        let stderr = String::from_utf8_lossy(&o.stderr);
+                        println!("cargo fmt failed: {}", stderr);
+                    }
+                    Err(e) => println!("cargo fmt not available: {}", e),
+                }
+                return Ok(());
+            }
+
+            let report = match check.as_deref() {
+                Some("audit") => {
+                    let check = security::audit::run_audit().await;
+                    security::SecurityReport::from_checks(vec![check])
+                }
+                Some("secrets") => {
+                    let check = security::secrets::scan_secrets(&cfg.security.secret_patterns);
+                    security::SecurityReport::from_checks(vec![check])
+                }
+                Some("quality") => {
+                    let check = security::quality::run_quality_gate().await;
+                    security::SecurityReport::from_checks(vec![check])
+                }
+                Some("license") => {
+                    let check = security::license::run_license_check(
+                        cfg.security.deny_config_path.as_deref(),
+                    )
+                    .await;
+                    security::SecurityReport::from_checks(vec![check])
+                }
+                Some(other) => {
+                    eprintln!(
+                        "Unknown check '{}'. Available: audit, secrets, quality, license",
+                        other
+                    );
+                    return Ok(());
+                }
+                None => {
+                    security::run_all(
+                        cfg.security.deny_config_path.as_deref(),
+                        &cfg.security.secret_patterns,
+                    )
+                    .await
+                }
+            };
+
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                println!("{}", report.summary);
+                for check in &report.checks {
+                    let status = if !check.tool_available {
+                        "UNAVAILABLE"
+                    } else if check.passed {
+                        "PASS"
+                    } else {
+                        "FAIL"
+                    };
+                    println!(
+                        "  {}: {} ({} finding(s))",
+                        check.name,
+                        status,
+                        check.findings.len()
+                    );
+                    for finding in &check.findings {
+                        println!("    [{}] {}", finding.severity, finding.message);
+                        if let Some(fix) = &finding.fix {
+                            println!("      Fix: {}", fix);
+                        }
+                    }
+                }
+            }
+
+            if !report.passed {
+                std::process::exit(1);
+            }
+        }
+
+        Commands::Hooks { action } => match action {
+            cli::HooksAction::Install => {
+                let path = hooks::install_hook()?;
+                println!("Pre-push hook installed at {}", path.display());
+            }
+            cli::HooksAction::Remove => {
+                let path = hooks::remove_hook()?;
+                println!("Pre-push hook removed from {}", path.display());
+            }
+        },
     }
 
     Ok(())

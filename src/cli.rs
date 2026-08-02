@@ -109,6 +109,97 @@ pub enum Commands {
 
     /// Create default config file
     Init,
+
+    /// AI-powered analysis of contribution opportunities
+    Ai {
+        #[command(subcommand)]
+        action: AiAction,
+    },
+
+    /// Output OpenAI-compatible tool definitions as JSON
+    Tools,
+
+    /// Execute a tool call (for agents that shell out)
+    Call {
+        /// Tool name
+        tool: String,
+        /// Arguments as JSON string
+        #[arg(long)]
+        args: String,
+    },
+
+    /// Start HTTP server for agent integration
+    Serve {
+        /// Port to listen on
+        #[arg(long, default_value_t = 3737)]
+        port: u16,
+    },
+
+    /// Run pre-push security checks
+    Security {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+        /// Run specific check only (audit, secrets, quality, license)
+        #[arg(long)]
+        check: Option<String>,
+        /// Auto-fix where possible (currently: cargo fmt only)
+        #[arg(long)]
+        fix: bool,
+    },
+
+    /// Manage git hooks
+    Hooks {
+        #[command(subcommand)]
+        action: HooksAction,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum AiAction {
+    /// Summarize contribution landscape for a repo
+    Analyze {
+        /// Repository in owner/repo format
+        #[arg(value_name = "OWNER/REPO")]
+        repo: String,
+        /// Skip confirmation prompt
+        #[arg(long)]
+        yes: bool,
+    },
+
+    /// Get personalized issue recommendations
+    Recommend {
+        /// Repository in owner/repo format
+        #[arg(value_name = "OWNER/REPO")]
+        repo: String,
+        /// Comma-separated skills (e.g. "rust,web,cli")
+        #[arg(long)]
+        skills: Option<String>,
+        /// Hours available
+        #[arg(long, default_value_t = 4)]
+        hours: u32,
+        /// Skip confirmation prompt
+        #[arg(long)]
+        yes: bool,
+    },
+
+    /// Rate issue difficulty for a repo
+    Difficulty {
+        /// Repository in owner/repo format
+        #[arg(value_name = "OWNER/REPO")]
+        repo: String,
+        /// Skip confirmation prompt
+        #[arg(long)]
+        yes: bool,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum HooksAction {
+    /// Install pre-push security hook
+    Install,
+    /// Remove pre-push security hook
+    Remove,
 }
 
 /// Parse "owner/repo" into (owner, repo)
