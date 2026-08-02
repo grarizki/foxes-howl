@@ -38,4 +38,4 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo install cargo-tarpaulin
-      - run: cargo tarpaulin --out stdout --timeout 120 --skip quality
+      - run: cargo tarpaulin --out stdout --timeout 120 -- --skip quality
