@@ -1,212 +1,133 @@
+<div align="center">
+
 # gh-opportunities
 
-Find open source contribution opportunities on GitHub. Scan repos for good first issues, stale PRs, README gaps, and code quality signals. Interactive TUI dashboard included.
+**Find your next open-source contribution on GitHub.** Scan repositories for beginner-friendly issues, stale pull requests, README gaps, and code-quality signals — then rank them by how much you'll learn and how big an impact you can make.
+
+Rust · Async (tokio) · Terminal UI (ratatui) · HTTP API (axum) · SQLite cache · AI-powered recommendations
+
+</div>
+
+<p align="center">
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
+  <img src="https://img.shields.io/badge/rust-1.88+-orange.svg" alt="MSRV 1.88">
+  <img src="https://img.shields.io/badge/CI-precommit%2Faudit%2Fcoverage-brightgreen.svg" alt="CI">
+  <img src="https://img.shields.io/badge/tests-109%20passing-brightgreen.svg" alt="Tests">
+  <a href="https://github.com/grarizki/foxes-howl"><img src="https://img.shields.io/github/stars/grarizki/foxes-howl?style=social"></a>
+</p>
+
+</div>
+
+---
+
+## Why this exists
+
+Looking for good open-source contributions is slow. You open a repo, hunt for `good first issue` labels, guess whether issues are stale, and ignore more than you keep. **gh-opportunities automates that research** and turns it into a ranked, scored list you can act on in minutes — from the terminal, from a script, or from an AI agent.
+
+It goes beyond "find issues labeled beginner." It scores repos on four signals:
+
+- **Good-first-issue quality** — labeled, well-described, unassigned
+- **Staleness** — issues and PRs waiting too long for attention
+- **README & community health** — CONTRIBUTING.md, CoC, LICENSE, templates
+- **Code quality** — TODO/FIXME density, CI, lint config, test coverage
+
+The composite score tells you *where you'll make the most difference* — not just *where something is labeled easy*.
+
+---
 
 ## Features
 
-- **Good First Issue Scanner** — finds issues labeled `good first issue`, `help wanted`, `beginner`, `easy`, `starter` and scores them
-- **Stale Issue/PR Detector** — identifies issues and PRs with no activity for N days
-- **README Analyzer** — checks for CONTRIBUTING.md, CODE_OF_CONDUCT, LICENSE, issue templates, PR templates, build instructions
-- **Code Quality Signals** — counts TODO/FIXME/HACK comments, checks for CI config, lint config, test directories
-- **Composite Scoring** — ranks repos by contribution opportunity potential
-- **Interactive TUI** — terminal dashboard with keyboard navigation, filtering, and detail views
-- **SQLite Cache** — local caching to avoid redundant API calls
-- **JSON Export** — machine-readable output for scripting
-- **AI Analysis** — LLM-powered contribution summaries, difficulty ratings, personalized recommendations (OpenAI + Anthropic)
-- **Security Gate** — pre-push checks: CVE scanning, secret detection, license compliance, quality gate
-- **HTTP Server** — agent integration via bearer-authenticated REST API
-- **OpenAI Tools API** — function definitions for agent-driven contribution discovery
-- **Git Hooks** — automatic pre-push security gate installation
+- **🔍 Repo scanner** — fetch and score good-first issues for any `owner/repo`
+- **🗺️ Repo discovery** — find high-opportunity repos by language and topic
+- **⏳ Stale detector** — surface issues and PRs idle for N days (configurable)
+- **📖 README/community audit** — check the 7 community-health files every project should have
+- **🧹 Code-quality analysis** — TODO/FIXME/HACK counts, CI, lint, test signals
+- **🧮 Composite scoring** — transparent, weighted repo ranking
+- **🖥️ Interactive TUI** — keyboard-driven dashboard (ratatui)
+- **💾 SQLite cache** — cut redundant API calls and rate-limit pressure
+- **🤖 AI analysis** — analyze, recommend, and rate difficulty via OpenAI or Anthropic
+- **🔌 OpenAI tools / HTTP server** — expose capabilities to agents (bearer-authenticated)
+- **🛡️ Security gate** — CVE, secret, license, and quality checks before you push
+- **🪝 Git hooks** — install pre-push security as one command
+- **📦 JSON everywhere** — scriptable, machine-readable output
+
+---
 
 ## Install
 
+Requires **Rust 1.88+**. Install from source:
+
 ```bash
-# from source
 git clone https://github.com/grarizki/foxes-howl.git
 cd foxes-howl
+
+# Install the binary on your PATH
 cargo install --path .
 
-# or build locally
+# Or build a locally-optimized release binary
 cargo build --release
 ```
 
-## Setup
+### 1. Set a GitHub token
 
-Set a GitHub token for higher rate limits (60 req/hr without, 5000 with):
+No token works, but rate limits are tight (60 req/h). A token gets you **5,000 req/h**:
 
 ```bash
 export GITHUB_TOKEN="ghp_your_token_here"
 ```
 
-Create default config:
+### 2. Create the default config
 
 ```bash
 gh-opportunities init
 ```
 
-This creates `~/.config/gh-opportunities/config.toml`:
+Writes `~/.config/gh-opportunities/config.toml` with sensible defaults for scoring weights, the AI provider, your profile, and security options. Tune it to your workflow.
 
-```toml
-[scoring]
-stale_days = 30
-good_first_weight = 0.3
-stale_weight = 0.2
-readme_weight = 0.2
-code_quality_weight = 0.3
-
-[display]
-max_results = 25
-
-[ai]
-provider = "openai"
-model = "gpt-4o"
-api_key_env = "OPENAI_API_KEY"
-max_tokens = 2048
-
-[ai.profile]
-skills = []
-experience = "intermediate"
-hours_per_week = 4
-interests = []
-
-[serve]
-token_env = "GH_OPP_TOKEN"
-
-[security]
-deny_config_path = ""
-secret_patterns = []
-```
-
-## Usage
-
-### Scan for Good First Issues
+### 3. Re-run the CI locally (optional but recommended)
 
 ```bash
-# basic scan
-gh-opportunities scan rust-lang/rust
-
-# limit results
-gh-opportunities scan tokio-rs/tokio --limit 10
-
-# JSON output for scripting
-gh-opportunities scan denoland/deno --json
-
-# skip cache
-gh-opportunities scan facebook/react --no-cache
+cargo fmt --check   # formatting
+cargo clippy        # lints
+cargo test          # 109 unit tests
+cargo audit         # dependency CVEs
+cargo tarpaulin     # coverage report
 ```
 
-### Discover Repos with Contribution Opportunities
+> CI runs all of these on every pull request across Ubuntu, macOS, and Windows.
+
+---
+
+## Quick start
 
 ```bash
-# discover repos with good first issues in Rust
-gh-opportunities discover --lang rust
+# Score good first issues in a repo
+gh-opportunities scan serde-rs/serde
 
-# discover repos by topic
-gh-opportunities discover --topic web --lang typescript
+# Discover high-opportunity Rust repos
+gh-opportunities discover --lang rust --min-stars 100
 
-# discover repos with minimum stars
-gh-opportunities discover --lang python --min-stars 500 --limit 5
+# Find issues nobody's touched in 30+ days
+gh-opportunities stale tokio-rs/tokio
 
-# JSON output
-gh-opportunities discover --lang go --json
-```
-
-### Find Stale Issues and PRs
-
-```bash
-# default: 30 day threshold
-gh-opportunities stale rust-lang/rust
-
-# custom threshold
-gh-opportunities stale tokio-rs/tokio --days 14
-
-# JSON output
-gh-opportunities stale vercel/next.js --json --limit 50
-```
-
-### Analyze README and Community Health
-
-```bash
-gh-opportunities readme rust-lang/rust
-gh-opportunities readme facebook/react --json
-```
-
-Output shows:
-```
-README Analysis for rust-lang/rust (score: 85%)
-
-┌─────────────────────┬─────────┐
-│ Check               │ Status  │
-├─────────────────────┼─────────┤
-│ README.md           │ OK      │
-│ CONTRIBUTING.md     │ OK      │
-│ CODE_OF_CONDUCT.md  │ OK      │
-│ LICENSE             │ OK      │
-│ Issue Template      │ OK      │
-│ PR Template         │ OK      │
-│ Build Instructions  │ OK      │
-└─────────────────────┴─────────┘
-```
-
-### Analyze Code Quality
-
-```bash
+# Audit a repo's community health + code quality
+gh-opportunities readme facebook/react
 gh-opportunities quality rust-lang/rust
-gh-opportunities quality tokio-rs/tokio --json
-```
 
-Output shows:
-```
-Code Quality Analysis for rust-lang/rust (score: 72%)
-
-┌──────────────┬─────────┐
-│ Check        │ Value   │
-├──────────────┼─────────┤
-│ TODO count   │ 234     │
-│ FIXME count  │ 45      │
-│ HACK count   │ 12      │
-│ CI Config    │ OK      │
-│ Lint Config  │ OK      │
-│ Test Dir     │ OK      │
-└──────────────┴─────────┘
-```
-
-### Interactive TUI
-
-```bash
-# single repo
-gh-opportunities tui rust-lang/rust
-
-# multiple repos
+# Watch it all in the interactive TUI
 gh-opportunities tui rust-lang/rust tokio-rs/tokio denoland/deno
+
+# Repo health scores, ranked
+gh-opportunities discover --lang python --json
 ```
 
-#### TUI Keybindings
+Every scan supports `--json` for scripting.
 
-| Key | Action |
-|-----|--------|
-| `j` / `Down` | Next item |
-| `k` / `Up` | Previous item |
-| `Tab` | Next screen |
-| `Shift+Tab` | Previous screen |
-| `d` | Dashboard |
-| `i` | Issues |
-| `r` | Repos |
-| `Enter` | View detail |
-| `/` | Start filter |
-| `c` | Clear filter |
-| `q` / `Esc` | Quit |
+---
 
-#### TUI Screens
+## AI-Powered analysis
 
-- **Dashboard** — overview: total opportunities, stale items, top matches, repo health
-- **Issues** — filterable table of contribution candidates with preview pane
-- **Repos** — repo health scores with composite ranking
-- **Detail** — full context for selected issue (metadata, labels, description)
-
-### AI-Powered Analysis
-
-Requires an API key. Set in config or environment:
+Set your provider key (OpenAI or Anthropic):
 
 ```bash
 export OPENAI_API_KEY="sk-..."
@@ -215,267 +136,142 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 ```
 
 ```bash
-# AI summary of contribution landscape
+# Summarize a repo's contribution landscape
 gh-opportunities ai analyze rust-lang/rust
 
-# Personalized recommendations based on your skills
-gh-opportunities ai recommend tokio-rs/tokio --skills "rust,async,web" --hours 10
+# Personalized recommendations from your skills
+gh-opportunities ai recommend tokio-rs/tokio --skills "rust,async,cli" --hours 10
 
 # Rate issue difficulty
 gh-opportunities ai difficulty denoland/deno
 
-# Skip confirmation prompt
+# Skip the cost-confirmation prompt
 gh-opportunities ai analyze rust-lang/rust --yes
 ```
 
-All AI commands output structured JSON. Token cost estimate shown before each call.
+A token-cost estimate is shown before each LLM call; confirm or pass `--yes`.
 
-### OpenAI Tools API
+---
+
+## Agent integration
+
+Expose gh-opportunities to AI tools or a local service:
 
 ```bash
-# Output tool definitions for OpenAI function calling
+# Dump OpenAI function-calling tool definitions
 gh-opportunities tools
 
-# Execute a tool call (for agents)
+# Execute a tool call directly
 gh-opportunities call scan_issues --args '{"repo":"rust-lang/rust","limit":10}'
-```
 
-### HTTP Server
-
-```bash
-# Set a bearer token
+# Or run the HTTP server (binds 127.0.0.1, bearer-auth)
 export GH_OPP_TOKEN="your-secret-token"
-
-# Start server (default port 3737, binds to 127.0.0.1 only)
 gh-opportunities serve --port 3737
 ```
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `GET` | `/health` | No | Health check |
-| `GET` | `/tools` | Yes | OpenAI tool definitions |
-| `POST` | `/call` | Yes | Execute a tool call |
-| `POST` | `/ai/analyze` | Yes | AI analysis |
-| `POST` | `/ai/recommend` | Yes | AI recommendations |
-| `POST` | `/ai/difficulty` | Yes | Issue difficulty ratings |
-| `POST` | `/security` | Yes | Run security checks |
-| `GET` | `/profile` | Yes | User profile from config |
+HTTP endpoints: `GET /health`, `GET /tools`, `POST /call`, `POST /ai/analyze`, `POST /ai/recommend`, `POST /ai/difficulty`, `POST /security`, `GET /profile`.
 
-### Security Gate
+---
+
+## Security gate
 
 ```bash
-# Run all security checks
+# All checks
 gh-opportunities security
 
-# Run specific check
+# One check at a time
 gh-opportunities security --check audit
 gh-opportunities security --check secrets
 gh-opportunities security --check quality
 gh-opportunities security --check license
 
-# JSON output
+# JSON output, or auto-fix what's fixable (cargo fmt)
 gh-opportunities security --json
-
-# Auto-fix (currently: cargo fmt only)
 gh-opportunities security --fix
-```
 
-Checks:
-- **cargo-audit** — CVE scanning for Rust dependencies
-- **secrets** — regex-based detection of API keys, tokens, passwords, private keys
-- **license** — license compliance via cargo-deny or fallback metadata check
-- **quality** — cargo fmt, clippy, and test gate
-
-### Git Hooks
-
-```bash
-# Install pre-push hook (runs `gh-opportunities security` before every push)
+# Install as a pre-push hook
 gh-opportunities hooks install
-
-# Remove pre-push hook
-gh-opportunities hooks remove
 ```
 
-The hook blocks pushes if any security check fails.
+The four checks: **audit** (cargo-audit CVEs), **secrets** (regex API/token/password scanner), **license** (cargo-deny / fallback metadata), **quality** (fmt + clippy + test). The pre-push hook **blocks the push if any check fails**.
 
-## Scoring System
+---
 
-### Issue Score (0.0 - 1.0)
+## Scoring
 
-| Signal | Weight | Condition |
-|--------|--------|-----------|
-| Label match | 0.5 | Has `good first issue`, `help wanted`, etc. |
-| Body quality | 0.3 | Description > 50 chars |
-| Unassigned | 0.2 | No one assigned |
+**Issue score (0–1):** 0.5 label match (`good first issue` etc.) · 0.3 description > 50 chars · 0.2 unassigned.
 
-### Composite Repo Score (0.0 - 1.0)
+**Repo composite (0–1):** 0.3 avg issue score · 0.2 stale ratio · 0.2 README/community gaps · 0.3 code-quality deficit. **A higher score means more high-upside openings.**
 
-Higher score = more contribution opportunity:
-
-| Factor | Default Weight | Meaning |
-|--------|---------------|---------|
-| Good first issues | 0.3 | Average issue score |
-| Stale items | 0.2 | Ratio of stale issues/PRs |
-| README gaps | 0.2 | Missing community health files |
-| Code quality | 0.3 | TODO/FIXME count, missing CI/tests/lint |
+---
 
 ## Architecture
 
 ```
 src/
-├── main.rs              # CLI dispatch, table rendering
-├── cli.rs               # clap derive definitions
-├── config.rs            # XDG config, TOML parsing
-├── db.rs                # SQLite cache (rusqlite)
-├── github/
-│   ├── mod.rs           # octocrab client init
-│   ├── issues.rs        # Issue fetching + scoring
-│   └── discover.rs      # Repo discovery
-├── analysis/
-│   ├── mod.rs
-│   ├── stale.rs         # Stale PR/issue detection
-│   ├── readme.rs        # README gap analysis
-│   ├── code_quality.rs  # TODO/FIXME, CI, tests, lint
-│   └── scoring.rs       # Composite scoring
-├── ai/
-│   ├── mod.rs           # Re-exports
-│   ├── provider.rs      # LlmProvider trait + factory
-│   ├── openai.rs        # OpenAI client
-│   ├── anthropic.rs     # Anthropic client
-│   ├── prompts.rs       # Prompt templates (analyze, recommend, difficulty)
-│   ├── estimate.rs      # Token count + cost estimation
-│   └── tools.rs         # OpenAI function-calling definitions
-├── security/
-│   ├── mod.rs           # SecurityReport, runner
-│   ├── audit.rs         # cargo-audit wrapper
-│   ├── secrets.rs       # Regex-based secret scanner
-│   ├── license.rs       # License compliance check
-│   └── quality.rs       # fmt/clippy/test gate
-├── serve/
-│   ├── mod.rs           # axum HTTP server + bearer auth
-│   └── routes.rs        # Route handlers
-├── hooks/
-│   └── mod.rs           # Pre-push hook installer
-└── tui/
-    ├── mod.rs           # Terminal setup, event loop
-    ├── app.rs           # App state, navigation
-    └── screens/
-        ├── dashboard.rs # Summary view
-        ├── issues.rs    # Issue table + preview
-        ├── repos.rs     # Repo health table
-        └── detail.rs    # Issue deep-dive
+├── main.rs            # CLI dispatch, table rendering
+├── cli.rs             # clap derive definitions
+├── config.rs          # XDG config, TOML parsing
+├── db.rs              # SQLite cache (rusqlite)
+├── github/            # octocrab client, issue fetch, discovery
+├── analysis/          # stale / readme / code_quality / scoring
+├── ai/                # provider trait, openai, anthropic, prompts, estimate, tools
+├── security/          # audit, secrets, license, quality
+├── serve/             # axum HTTP server + routes (bearer auth)
+├── hooks/             # pre-push hook installer
+└── tui/               # ratatui screens: dashboard, issues, repos, detail
 ```
 
-## Tech Stack
+**Modules are small, single-purpose, and testable.** The `ai/` and `security/` layers are clean seams — swap providers or add checks without touching callers.
 
-| Layer | Crate |
-|-------|-------|
-| CLI | clap 4 (derive) |
-| TUI | ratatui + crossterm |
-| GitHub API | octocrab |
-| Async | tokio |
-| DB | rusqlite (bundled) |
-| Errors | thiserror (lib), anyhow (binary) |
-| HTTP | reqwest + rustls |
-| HTTP Server | axum 0.8 |
-| Config | dirs (XDG), serde + toml |
-| Regex | regex |
+---
 
-## Compile Optimizations
+## Contributing
 
-```toml
-# .cargo/config.toml (already included)
-[profile.dev]
-opt-level = 0
-debug = true
-incremental = true
+We welcome contributors — this project is built specifically to help people land their first real open-source PR. Good starting points:
 
-[profile.release]
-strip = true
-opt-level = 3
-lto = "thin"
-codegen-units = 1
-```
+1. **Pick an issue** — look for `good first issue` / `help wanted` labels in this repo.
+2. **Set up** — clone, `cargo install --path .`, run the smoke test above, `cargo test`.
+3. **Keep it green** — commit through `prek` (fmt + clippy + test) and open a PR.
+4. **Follow conventions** — each module owns its tests; add one alongside any non-trivial logic.
 
-For faster builds, add to your shell profile:
+**Community conventions**
+- Format: `cargo fmt` (pre-commit enforced)
+- Lint: `cargo clippy` (pre-commit enforced)
+- Tests: `cargo test`; run `cargo tarpaulin` for coverage
+- Hooks: `prek` manages fmt/clippy/test; pre-push security gate optional
 
-```bash
-export RUSTC_WRAPPER=~/.cargo/bin/sccache  # if sccache installed
-export CARGO_TARGET_DIR=~/.cargo/target     # shared target dir
-```
+Ideas that would help most (see `cargo discover --language rust`):
 
-## Testing
+- More scoring heuristics / prio-labels
+- Webhook or scheduled-run support
+- A CI-dashboard view
+- Alternate LLM providers
+- Parser for more license sources
 
-```bash
-# run all tests
-cargo test
+Start small, ask questions, and open your first PR. The contribution loop here is the one this tool searches for.
 
-# run specific module
-cargo test analysis::stale
+---
 
-# run with output
-cargo test -- --nocapture
-```
+## Tech stack
 
-109 unit tests covering:
-- Issue scoring (label matching, body quality, assignment)
-- Stale severity calculation (threshold, linear decay, cap)
-- README analysis (build instructions, community files, broken links)
-- Code quality scoring (penalties, caps, CI/lint/test checks)
-- Composite scoring (weight application, edge cases)
-- SQLite cache (store, load, clear, replace, schema)
-- TUI app state (navigation, filtering, input modes)
-- CLI parsing (repo format validation)
-- Discover scoring (star bonus calculation)
-- AI provider factory (openai, anthropic, missing key, unknown provider)
-- AI prompt generation (analyze, recommend, difficulty templates)
-- Token estimation (pricing, clamping, formatting)
-- OpenAI tool definitions (schema shape, required fields, tool names)
-- Security report (pass, fail, unavailable tools)
-- Secret detection (AWS keys, GitHub tokens, private keys, generic secrets)
-- Audit parsing (cargo-audit JSON, vulnerabilities)
-- License checking (deny JSON, allowlist, copyleft detection)
-- Serve auth (valid token, invalid token, missing header)
-- Hooks (git dir detection, hook content format)
-- Config parsing (AI, serve, security sections)
+| Layer        | Crates                                       |
+|--------------|----------------------------------------------|
+| CLI          | clap 4 (derive)                             |
+| TUI          | ratatui 0.30 + crossterm 0.28                  |
+| Async        | tokio 1 (full)                              |
+| HTTP client  | reqwest 0.12 + rustls                       |
+| HTTP server  | axum 0.8                                    |
+| DB / cache   | rusqlite 0.35 (bundled)                     |
+| Analysis     | regex, chrono, serde / serde_json           |
+| Config       | dirs (XDG), toml                           |
+| Errors       | thiserror (lib) · anyhow (bin)              |
+| Logging      | tracing / tracing-subscriber               |
 
-## Security Audit
+**Toolchain:** Rust 2021 edition · MSRV 1.88 · LTO + strip in release · pre-commit hooks (`prek`) · GitHub Actions CI
 
-Check dependencies for vulnerabilities before building:
-
-```bash
-# install cargo-audit (if not installed)
-brew install cargo-audit
-
-# run security audit
-cargo audit
-```
-
-Current status: 2 allowed warnings (unmaintained crate `paste`, unsound crate `lru` — both transitive dependencies, not direct).
-
-## Dependencies
-
-```toml
-clap = "4"              # CLI parsing
-octocrab = "0.44"       # GitHub API client
-tokio = "1"             # Async runtime
-ratatui = "0.29"        # Terminal UI
-crossterm = "0.28"      # Terminal backend
-rusqlite = "0.35"       # SQLite (bundled)
-reqwest = "0.12"        # HTTP client
-axum = "0.8"            # HTTP server
-serde = "1"             # Serialization
-serde_json = "1"        # JSON
-chrono = "0.4"          # Date/time
-comfy-table = "7"       # CLI tables
-toml = "0.8"            # Config parsing
-dirs = "6"              # XDG directories
-regex = "1"             # Pattern matching
-tracing = "0.1"         # Logging
-thiserror = "2"         # Typed errors
-anyhow = "1"            # Error context
-```
+---
 
 ## License
 
-MIT
+[MIT](LICENSE) © 2026. Use it, learn from it, extend it — and go make your first open-source contribution. 🚀
